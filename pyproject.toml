@@ -1,0 +1,33 @@
+[project]
+name = "bitalino-rs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "tleygue", email = "36546314+tleygue@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+bitalino-rs = "bitalino_rs:main"
+
+[tool.maturin]
+module-name = "bitalino_rs._core"
+python-packages = ["bitalino_rs"]
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "semver"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true

@@ -1,0 +1,51 @@
+# -------------------------
+# Rust / Cargo
+# -------------------------
+debug/
+target/
+**/*.rs.bk        # rustfmt backup files
+*.pdb             # MSVC debug symbols
+
+# Mutation testing (cargo-mutants)
+**/mutants.out*/
+
+# -------------------------
+# Python
+# -------------------------
+*.py[cod]
+*.egg
+*.egg-info/
+__pycache__/
+dist/
+venv*/
+.venv/
+
+# -------------------------
+# Build Artifacts / Binaries
+# -------------------------
+*.o
+*.so
+
+# -------------------------
+# Testing / Tooling
+# -------------------------
+.pytest_cache/
+.tox/
+
+# -------------------------
+# JavaScript / Node
+# -------------------------
+node_modules/
+
+# -------------------------
+# Editor / Tagging
+# -------------------------
+tags
+
+# -------------------------
+# Test crates (project-specific)
+# -------------------------
+/test-crates/*/target
+test-crates/targets/
+test-crates/venvs/
+test-crates/wheels/

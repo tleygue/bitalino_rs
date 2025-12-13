@@ -1,0 +1,53 @@
+# cargo-deny configuration
+# Documentation: https://embarkstudios.github.io/cargo-deny/
+
+# Note: Running with default settings denies all licenses unless explicitly allowed
+[licenses]
+# List of explicitly allowed licenses
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "ISC",
+    "Zlib",
+]
+
+# Confidence threshold for license detection (0.0 - 1.0)
+confidence-threshold = 0.8
+
+# Allow licenses that are both OSI-approved and FSF Free/Libre
+# Uncomment to allow any OSI/FSF license automatically:
+# allow-osi-fsf-free = "both"
+
+[licenses.private]
+# Ignore license checks for private/unpublished crates
+ignore = false
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+# Allow or deny specific crates
+deny = []
+
+[advisories]
+# Database URLs for fetching security advisories
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Ignore specific advisories (use with caution)
+# RUSTSEC-2025-0020: pyo3 0.22.6 has a buffer overflow risk, should upgrade to >=0.24.1
+ignore = []
+
+[sources]
+# Lint level for unknown registries
+unknown-registry = "warn"
+# Lint level for unknown git sources
+unknown-git = "warn"
+# Allow only crates.io and git sources
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

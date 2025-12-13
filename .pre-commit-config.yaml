@@ -1,0 +1,94 @@
+# Run all hooks with: pre-commit run --hook-stage manual --all-files
+minimum_pre_commit_version: "3.5.0"
+default_language_version:
+  python: python3.11
+exclude: |
+  (?x)(
+    ^target/|
+    ^\.venv/|
+    ^build/|
+    ^dist/|
+    __pycache__/|
+    \.mypy_cache/|
+    \.ruff_cache/
+  )
+
+ci:
+  # pre-commit.ci image does not ship with the Rust toolchain, so Rust-only hooks are skipped there.
+  skip:
+    - cargo-fmt
+    - cargo-deny
+
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt  # rustup component add rustfmt
+        name: cargo fmt
+        entry: cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-check
+        name: cargo check
+        entry: cargo check --all-features --all-targets --
+        language: system
+        pass_filenames: false
+        types: [rust]
+        stages: [manual]
+
+      - id: cargo-clippy  # rustup component add clippy
+        name: cargo clippy
+        entry: cargo clippy --tests --all-features -- -D warnings
+        language: system
+        pass_filenames: false
+        types: [rust]
+        stages: [manual]
+  - repo: https://github.com/EmbarkStudios/cargo-deny
+    rev: 0.14.16
+    hooks:
+      - id: cargo-deny
+        args: ["--all-features", "check"]
+        stages: [manual]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)(
+              (^sysconfig/)|
+              (.*\.stdout)
+          )
+      - id: trailing-whitespace
+        exclude: |
+          (?x)(
+              (^sysconfig/)|
+              (.*\.stdout)
+          )
+      - id: mixed-line-ending
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.27.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+        name: commitizen check
+        additional_dependencies: []
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff-format
+        args: [--config=pyproject.toml]
+        types_or: [python, pyi]
+      - id: ruff
+        args: [--config=pyproject.toml]
+        types_or: [python, pyi]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        name: mypy (package)
+        entry: mypy bitalino_rs
+        pass_filenames: false
+        args: [--config-file=pyproject.toml]
