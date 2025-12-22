@@ -211,7 +211,7 @@ impl<T: Read + Write + Send> Transport for T {}
 /// # Example (Rust)
 /// ```ignore
 /// let connector = BluetoothConnector::default();
-/// let stream = connector.pair_and_connect("98:D3:51:FE:6F:A3", "1234")?;
+/// let stream = connector.pair_and_connect("7E:91:2B:C4:AF:08", "1234")?;
 /// let mut device = Bitalino::from_rfcomm(stream);
 ///
 /// println!("Firmware: {}", device.version()?);

@@ -239,7 +239,7 @@ impl From<DeviceState> for PyDeviceState {
 /// BITalino devices via Bluetooth. No root privileges required.
 ///
 /// Example:
-///     >>> device = Bitalino.connect("98:D3:51:FE:6F:A3")
+///     >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
 ///     >>> print(f"Firmware: {device.version()}")
 ///     >>> device.start(rate=1000, channels=[0, 1, 2])
 ///     >>> frames = device.read(100)
@@ -271,7 +271,7 @@ impl PyBitalino {
     /// No root privileges required.
     ///
     /// Args:
-    ///     mac: The MAC address of the device (e.g., "98:D3:51:FE:6F:A3")
+    ///     mac: The MAC address of the device (e.g., "7E:91:2B:C4:AF:08")
     ///     pin: The PIN code for pairing (default: "1234")
     ///
     /// Returns:
