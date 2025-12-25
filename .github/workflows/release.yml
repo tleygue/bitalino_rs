@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: bitalino-rs-name
+            asset_name: bitalino-rs-linux-x86_64
+          - os: windows-latest
+            artifact_name: bitalino-rs-name.exe
+            asset_name: bitalino-rs-windows-x86_64.exe
+          - os: macos-latest
+            artifact_name: bitalino-rs-name
+            asset_name: bitalino-rs-macos-x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release --locked
+
+      - name: Upload Binaries
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.ref }}
+          overwrite: true
+          # This ensures the release body is only set by the first job to finish
+          body: "Release generated from tag ${{ github.ref }}"
