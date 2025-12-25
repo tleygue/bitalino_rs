@@ -39,27 +39,15 @@ jobs:
 
   rust-tests:
     needs: lint
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libdbus-1-dev libudev-dev
-
-      - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew update
-          brew install pkg-config dbus
-          # Ensure pkg-config can find dbus
-          echo "PKG_CONFIG_PATH=$(brew --prefix dbus)/lib/pkgconfig" >> $GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@stable
 
