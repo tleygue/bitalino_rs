@@ -18,9 +18,6 @@ jobs:
           - os: ubuntu-latest
             artifact_name: bitalino-rs-name
             asset_name: bitalino-rs-linux-x86_64
-          - os: windows-latest
-            artifact_name: bitalino-rs-name.exe
-            asset_name: bitalino-rs-windows-x86_64.exe
           - os: macos-latest
             artifact_name: bitalino-rs-name
             asset_name: bitalino-rs-macos-x86_64
