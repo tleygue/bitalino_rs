@@ -1,3 +1,4 @@
+---
 # Run all hooks with: pre-commit run --hook-stage manual --all-files
 minimum_pre_commit_version: "3.5.0"
 default_language_version:
@@ -14,7 +15,8 @@ exclude: |
   )
 
 ci:
-  # pre-commit.ci image does not ship with the Rust toolchain, so Rust-only hooks are skipped there.
+  # pre-commit.ci image does not ship with the Rust toolchain,
+  # so Rust-only hooks are skipped there.
   skip:
     - cargo-fmt
     - cargo-deny
@@ -92,3 +94,8 @@ repos:
         entry: mypy bitalino_rs
         pass_filenames: false
         args: [--config-file=pyproject.toml]
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [--strict]
