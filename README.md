@@ -3,7 +3,7 @@
 Rust driver and Python bindings for BITalino biosignal acquisition devices. This project automates Bluetooth pairing/connection (RFCOMM), exposes a safe Rust API, and ships Python wheels for easy use in data pipelines.
 
 ## Quick Links
-- Docs: [docs/](docs/) (Rust + Python API notes)
+- Docs: [tleygue.github.io/bitalino_rs](https://tleygue.github.io/bitalino_rs) (published via GitHub Pages; sources in [docs/](docs/))
 - Python package: `bitalino_rs` (built with maturin, published from tags)
 - Crate: `bitalino-rs` (Rust library)
 
@@ -70,10 +70,5 @@ dev.stop()
 - Commit style: Conventional Commits (checked in CI)
 - Tests: `cargo test --all-features --all-targets`
 
-## Release & Packaging
-- Tagging `v*` triggers GitHub Actions to build:
-	- Rust release binary (Linux x86_64) attached to the GitHub Release
-	- Python wheels/sdist built with `uv`/maturin, attached to the Release and published to PyPI via OIDC
-
 ## License
-MIT License. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
