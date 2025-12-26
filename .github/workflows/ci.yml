@@ -1,6 +1,7 @@
+---
 name: CI
 
-on:
+"on":
   push:
     branches: [main]
   pull_request:
@@ -17,9 +18,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
+          enable-cache: true  # Speeds up subsequent runs
+
+      - name: Set up Python
+        run: uv python install  # Uses .python-version or pyproject.toml
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -33,9 +38,25 @@ jobs:
       - name: Run pre-commit
         run: pre-commit run --all-files
 
-      - name: Check conventional commits
+      - name: "Check conventional commits (skip PR merges ending with #N)"
+        shell: bash
         run: |
-          cz check --rev-range origin/main..HEAD || cz check --rev-range HEAD
+          set -euo pipefail
+          base_ref=${GITHUB_BASE_REF:-origin/main}
+          commits=$(git rev-list "${base_ref}..HEAD" || true)
+          if [ -z "$commits" ]; then
+            echo "No commits to check."
+            exit 0
+          fi
+          while read -r sha; do
+            msg=$(git log -1 --pretty=%s "$sha")
+            if [[ "$msg" =~ \(#([0-9]+)\)$ ]]; then
+              echo "Skipping PR merge commit: $sha -> $msg"
+              continue
+            fi
+            echo "Checking $sha -> $msg"
+            cz check --commit "$sha"
+          done <<< "$commits"
 
   rust-tests:
     needs: lint
