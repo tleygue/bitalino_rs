@@ -96,7 +96,7 @@ class Bitalino:
         is_bitalino2: True if device is BITalino 2.0+ (supports extended features).
 
     Example:
-        >>> device = Bitalino.connect("98:D3:51:FE:6F:A3")
+        >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
         >>> print(f"Firmware: {device.version()}")
         >>> print(f"BITalino 2.0: {device.is_bitalino2}")
         >>>
@@ -140,7 +140,7 @@ class Bitalino:
         Includes automatic retry logic for flaky connections.
 
         Args:
-            address: Bluetooth MAC address (e.g., "98:D3:51:FE:6F:A3")
+            address: Bluetooth MAC address (e.g., "7E:91:2B:C4:AF:08")
             pin: Pairing PIN code (default: "1234")
 
         Returns:

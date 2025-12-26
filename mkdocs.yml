@@ -1,0 +1,46 @@
+site_name: bitalino-rs
+site_description: "BITalino Rust driver with Python bindings (PyO3/maturin)"
+repo_url: https://github.com/tleygue/bitalino_rs
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Python API: python_api.md
+  - Rust API: rust_api.md
+  - Development: development.md
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: blue
+      accent: teal
+
+plugins:
+  - search
+  - mkdocstrings:
+      watch:
+        - bitalino_rs
+        - src
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            docstring_style: google
+            merge_init_into_class: true
+            show_source: false
+            show_signature_annotations: true
+            filters:
+              - "!^__"
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc:
+      permalink: true
