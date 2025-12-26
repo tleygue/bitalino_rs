@@ -1,6 +1,6 @@
 [project]
 name = "bitalino-rs"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -40,5 +40,5 @@ name = "cz_conventional_commits"
 tag_format = "v$version"
 version_scheme = "semver"
 version_provider = "uv"
-update_changelog_on_bump = true
+update_changelog_on_bump = false
 major_version_zero = true
