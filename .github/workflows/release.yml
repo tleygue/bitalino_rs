@@ -1,12 +1,14 @@
+---
 name: Release
 
-on:
+"on":
   push:
     tags:
       - 'v*'
 
 permissions:
-  contents: write
+  id-token: write  # Required for OIDC
+  contents: write  # Needed for release uploads
 
 jobs:
   publish:
@@ -38,3 +40,43 @@ jobs:
           overwrite: true
           # This ensures the release body is only set by the first job to finish
           body: "Release generated from tag ${{ github.ref }}"
+
+  publish-pypi:
+    name: Publish Python package to PyPI
+    environment: pypi  # Matches the "Environment" field on PyPI
+    needs: publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true  # Speeds up subsequent runs
+
+      - name: Set up Python
+        run: uv python install  # Uses .python-version or pyproject.toml
+
+      - name: Build wheels and sdist (uv + maturin backend)
+        run: MATURIN_PEP517_ARGS="--release --locked" uv build --out dist
+
+      - name: Upload wheels to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "Python distributions for tag ${{ github.ref }}"
+
+      - name: Publish to PyPI (OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
