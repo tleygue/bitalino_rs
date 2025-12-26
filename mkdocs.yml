@@ -1,3 +1,4 @@
+---
 site_name: bitalino-rs
 site_description: "BITalino Rust driver with Python bindings (PyO3/maturin)"
 repo_url: https://github.com/tleygue/bitalino_rs
