@@ -30,20 +30,20 @@ Constants:
 """
 
 from bitalino_rs._core import (
-    Bitalino,
-    Frame,
-    FrameBatch,
-    DeviceState,
     DEFAULT_SAMPLING_RATE,
     VALID_SAMPLING_RATES,
+    Bitalino,
+    DeviceState,
+    Frame,
+    FrameBatch,
 )
 
 __all__ = [
-    "Bitalino",
-    "Frame",
-    "FrameBatch",
-    "DeviceState",
     "DEFAULT_SAMPLING_RATE",
     "VALID_SAMPLING_RATES",
+    "Bitalino",
+    "DeviceState",
+    "Frame",
+    "FrameBatch",
 ]
 __version__ = "0.1.0"

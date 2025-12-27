@@ -1,10 +1,10 @@
 """Type stubs for the BITalino Rust core module."""
 
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 # Module constants
 DEFAULT_SAMPLING_RATE: int
-VALID_SAMPLING_RATES: List[int]
+VALID_SAMPLING_RATES: list[int]
 
 class Frame:
     """
@@ -22,14 +22,12 @@ class Frame:
     analog: list[int]
     n_channels: int
 
-    def __new__(
-        cls, sequence: int, digital: list[int], analog: list[int]
-    ) -> "Frame": ...
+    def __new__(cls, sequence: int, digital: list[int], analog: list[int]) -> Frame: ...
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     def __hash__(self) -> int: ...
     def __eq__(self, other: object) -> bool: ...
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for easy serialization."""
         ...
 
@@ -78,7 +76,7 @@ class DeviceState:
     is_battery_low: bool
 
     def __repr__(self) -> str: ...
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for easy serialization."""
         ...
 
@@ -112,10 +110,10 @@ class Bitalino:
     """
 
     sampling_rate: int
-    elapsed_us: Optional[int]
+    elapsed_us: int | None
     is_bitalino2: bool
 
-    def __new__(cls, path: str) -> "Bitalino":
+    def __new__(cls, path: str) -> Bitalino:
         """
         Create a BITalino instance from a device path.
 
@@ -131,7 +129,7 @@ class Bitalino:
         ...
 
     @staticmethod
-    def connect(address: str, pin: str = "1234") -> "Bitalino":
+    def connect(address: str, pin: str = "1234") -> Bitalino:
         """
         Connect to a BITalino device via Bluetooth.
 
@@ -165,7 +163,7 @@ class Bitalino:
         """
         ...
 
-    def start(self, rate: int = 1000, channels: Optional[List[int]] = None) -> None:
+    def start(self, rate: int = 1000, channels: list[int] | None = None) -> None:
         """
         Start data acquisition.
 
@@ -188,7 +186,7 @@ class Bitalino:
         """
         ...
 
-    def read(self, n_frames: int = 100) -> List[Frame]:
+    def read(self, n_frames: int = 100) -> list[Frame]:
         """
         Read frames from the device.
 
@@ -268,7 +266,7 @@ class Bitalino:
         """
         ...
 
-    def trigger(self, outputs: Optional[List[int]] = None) -> None:
+    def trigger(self, outputs: list[int] | None = None) -> None:
         """
         Set digital output pins.
 
