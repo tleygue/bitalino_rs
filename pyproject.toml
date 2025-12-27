@@ -54,7 +54,7 @@ line-ending = "auto"
 python_version = "py311"
 warn_unused_configs = true
 exclude = ["^target/"]
-mypy_path = ["maturin_template"]
+mypy_path = ["bitalino_rs"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
@@ -63,7 +63,11 @@ version_scheme = "semver"
 version_provider = "uv"  # Use uv as the source of truth for the version
 update_changelog_on_bump = false
 major_version_zero = true
-version_files = ["Cargo.toml:^version"]
+version_files = [
+    "pyproject.toml:project.version",
+    "Cargo.toml:^version",
+    "Cargo.lock"
+]
 # Use a hook to update Cargo.lock and stage it
 post_bump_hooks = [
     "cargo metadata --format-version 1 > /dev/null",
