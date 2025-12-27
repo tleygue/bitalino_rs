@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: bitalino-rs-name
+            artifact_name: bitalino_rs
             asset_name: bitalino-rs-linux-x86_64
 
     steps:
