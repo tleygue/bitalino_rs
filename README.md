@@ -70,5 +70,10 @@ dev.stop()
 - Commit style: Conventional Commits (checked in CI)
 - Tests: `cargo test --all-features --all-targets`
 
+### Logging
+- Default level: `info`. Override with `BITALINO_LOG=debug` (falls back to `RUST_LOG` if unset).
+- Rust binaries: call `bitalino_rs::init_rust_logging()` once (idempotent).
+- Python: logging is wired on import; adjust from Python with `bitalino_rs.enable_rust_logs("debug")` or clear caches with `bitalino_rs.reset_log_cache()` after reconfiguring Python logging.
+
 ## License
 Apache License 2.0. See [LICENSE](LICENSE).
