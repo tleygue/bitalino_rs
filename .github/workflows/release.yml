@@ -74,7 +74,7 @@ jobs:
         run: uv python install  # Uses .python-version or pyproject.toml
 
       - name: Build wheels and sdist (uv + maturin backend)
-        run: MATURIN_PEP517_ARGS="--release --locked" uv build --out dist
+        run: uv build --out-dir dist
 
       - name: Upload wheels to GitHub Release
         uses: svenstaro/upload-release-action@v2
