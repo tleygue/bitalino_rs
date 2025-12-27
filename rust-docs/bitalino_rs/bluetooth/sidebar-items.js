@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_IO_TIMEOUT_SECS","MAX_CONNECT_RETRIES","PAIR_TIMEOUT_SECS","RETRY_DELAY_MS","SCAN_TIMEOUT_SECS"],"fn":["build_agent","open_rfcomm","wait_for_device"],"struct":["BluetoothConnector","RfcommStream"]};

@@ -1,0 +1,2 @@
+createSrcSidebar('[["_core",["",[],["bitalino.rs","bluetooth.rs","errors.rs","lib.rs"]]],["bitalino_rs",["",[],["bitalino.rs","bluetooth.rs","errors.rs","main.rs"]]]]');
+//{"start":19,"fragment_lengths":[69,77]}

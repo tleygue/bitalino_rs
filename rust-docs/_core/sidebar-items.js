@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BluetoothError","DriverError","SamplingRate"],"struct":["Bitalino","BluetoothConnector","DeviceState","Frame","FrameBatch","RfcommStream"],"type":["Result"]};

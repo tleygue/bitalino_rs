@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BAUD_RATE","CMD_IDLE","CMD_PWM_PREFIX","CMD_STATE","CMD_STOP","CMD_TRIGGER_1","CMD_TRIGGER_2","CMD_VERSION","COMMAND_DELAY","DEFAULT_TIMEOUT","STOP_DELAY","VERSION_TIMEOUT"],"enum":["SamplingRate"],"struct":["Bitalino","DeviceState","Frame","FrameBatch"],"trait":["Transport"]};
