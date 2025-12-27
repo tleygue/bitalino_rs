@@ -55,7 +55,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ steps.meta.outputs.project }} ${{ steps.meta.outputs.version }}
+          name: >-
+            ${{ steps.meta.outputs.project }}-${{ steps.meta.outputs.version }}
           files: dist/*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
