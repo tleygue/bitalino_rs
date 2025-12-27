@@ -42,3 +42,4 @@ version_scheme = "semver"
 version_provider = "uv"
 update_changelog_on_bump = false
 major_version_zero = true
+version_files = ["pyproject.toml:project.version", "Cargo.toml:package.version"]
