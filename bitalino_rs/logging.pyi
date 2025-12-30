@@ -1,3 +1,5 @@
+"""Helpers to bridge Rust logging into Python's ``logging`` module."""
+
 def enable_rust_logs(level: str | None = ...) -> None:
     """Enable Rust-side logging bridged into Python's ``logging`` module."""
 

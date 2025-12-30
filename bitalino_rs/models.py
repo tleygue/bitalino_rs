@@ -1,7 +1,9 @@
 """Shared data structures for BITalino interactions.
 
-Exports immutable data holders returned by the driver and sampling rate
-constants that describe the valid acquisition frequencies.
+These Python-visible types mirror what the Rust core returns: raw frames,
+timed batches with integrity counters, and device state snapshots. The
+``SamplingRate`` literal restricts configuration to values supported by the
+hardware crystal (1, 10, 100, 1000 Hz).
 """
 
 from typing import Literal
