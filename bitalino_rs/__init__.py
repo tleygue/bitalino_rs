@@ -47,13 +47,13 @@ from bitalino_rs.models import (
 )
 
 __all__ = [
-    "Bitalino",
-    "Frame",
-    "FrameBatch",
-    "DeviceState",
-    "SamplingRate",
     "DEFAULT_SAMPLING_RATE",
     "VALID_SAMPLING_RATES",
+    "Bitalino",
+    "DeviceState",
+    "Frame",
+    "FrameBatch",
+    "SamplingRate",
     "enable_rust_logs",
     "reset_log_cache",
 ]
