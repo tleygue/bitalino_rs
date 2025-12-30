@@ -13,12 +13,14 @@ crate-type = ["cdylib", "rlib"]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 # "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
 pyo3 = { version = "0.27.1", features = ["extension-module", "abi3-py39"] }
+log = "0.4"
+env_logger = "0.11"
+once_cell = "1.19"
 serialport = "4.8.1"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0.100"
 thiserror = "1.0"
 nix = { version = "0.29", default-features = false, features = ["socket", "time"] }
-tracing = "0.1"
 libc = "0.2"
 bluer = { version = "0.17.4", features = ["full"] }
 tokio = { version = "1.41", features = ["rt-multi-thread", "macros", "time"] }

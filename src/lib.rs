@@ -15,6 +15,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+mod logging;
+
 mod bitalino;
 mod bluetooth;
 mod errors;
@@ -22,6 +24,7 @@ mod errors;
 pub use bitalino::{Bitalino, DeviceState, Frame, FrameBatch, SamplingRate};
 pub use bluetooth::{BluetoothConnector, RfcommStream};
 pub use errors::*;
+pub use logging::{init_python_logging, init_rust_logging, reset_python_logging_cache};
 
 // ============================================================================
 // Python Bindings
@@ -248,6 +251,17 @@ impl From<DeviceState> for PyDeviceState {
 struct PyBitalino {
     inner: Bitalino,
     sampling_rate: u16,
+}
+
+#[pyfunction]
+fn enable_rust_logs(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
+    logging::set_python_log_level_str(py, level)
+}
+
+#[pyfunction]
+fn reset_log_cache() -> PyResult<()> {
+    logging::reset_python_logging_cache();
+    Ok(())
 }
 
 #[pymethods]
@@ -477,6 +491,9 @@ impl PyBitalino {
 /// The Python module definition
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Initialize Python logging bridge (no-op if already done)
+    logging::init_python_logging(m.py())?;
+
     m.add_class::<PyBitalino>()?;
     m.add_class::<PyFrame>()?;
     m.add_class::<PyFrameBatch>()?;
@@ -485,6 +502,10 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add module-level constants
     m.add("DEFAULT_SAMPLING_RATE", 1000u16)?;
     m.add("VALID_SAMPLING_RATES", vec![1u16, 10, 100, 1000])?;
+
+    // Logging helpers for Python
+    m.add_function(wrap_pyfunction!(enable_rust_logs, m)?)?;
+    m.add_function(wrap_pyfunction!(reset_log_cache, m)?)?;
 
     Ok(())
 }

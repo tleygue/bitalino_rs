@@ -19,7 +19,7 @@ use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use tracing::{debug, warn};
+use log::{debug, warn};
 
 use crate::bluetooth::RfcommStream;
 
