@@ -51,7 +51,7 @@ indent-style = "space"
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "py311"
+python_version = "3.11"
 warn_unused_configs = true
 exclude = ["^target/"]
 mypy_path = ["bitalino_rs"]

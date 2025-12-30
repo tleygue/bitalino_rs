@@ -1,10 +1,19 @@
-"""Type stubs for the BITalino Rust core module."""
+"""Type stubs for the compiled BITalino core extension."""
 
-from typing import Any
+from typing import Any, Literal
+
+SamplingRate = Literal[1, 10, 100, 1000]
 
 # Module constants
-DEFAULT_SAMPLING_RATE: int
-VALID_SAMPLING_RATES: list[int]
+DEFAULT_SAMPLING_RATE: SamplingRate
+VALID_SAMPLING_RATES: list[SamplingRate]
+
+# Logging helpers
+def enable_rust_logs(level: str | None = ...) -> None:
+    """Enable Rust-side logging bridged into Python's ``logging`` module."""
+
+def reset_log_cache() -> None:
+    """Clear cached Python logger lookups (useful after logging reconfiguration)."""
 
 class Frame:
     """
@@ -109,7 +118,7 @@ class Bitalino:
         >>> device.stop()
     """
 
-    sampling_rate: int
+    sampling_rate: SamplingRate
     elapsed_us: int | None
     is_bitalino2: bool
 
@@ -163,7 +172,7 @@ class Bitalino:
         """
         ...
 
-    def start(self, rate: int = 1000, channels: list[int] | None = None) -> None:
+    def start(self, rate: SamplingRate = 1000, channels: list[int] | None = None) -> None:
         """
         Start data acquisition.
 
