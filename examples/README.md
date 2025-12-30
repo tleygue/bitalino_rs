@@ -1,6 +1,6 @@
 # Examples
 
-Practical, runnable scripts to get started with `bitalino_rs`. All scripts accept a `--mac` Bluetooth address (unless noted) and assume a BITalino device is powered on.
+Practical, runnable scripts to get started with `bitalino_rs`. All scripts accept a `--mac` Bluetooth address (unless noted) and assume a BITalino device is powered on. With the default manual RFCOMM backend, make sure the device is already paired/trusted (e.g., via `bluetoothctl`).
 
 ```
 python examples/quickstart_read.py --mac AA:BB:CC:DD:EE:FF

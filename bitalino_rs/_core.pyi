@@ -149,9 +149,10 @@ class Bitalino:
         """
         Connect to a BITalino device via Bluetooth.
 
-        The Rust backend discovers the device, pairs with the provided PIN, and
-        opens an RFCOMM stream with retries. No root privileges are required on
-        typical Linux setups.
+        Default (manual RFCOMM): expects the device already paired/trusted
+        (e.g., via ``bluetoothctl``) and opens a raw RFCOMM socket using the MAC.
+        Optional BlueZ mode (feature ``bluez``): discovers and pairs with the
+        provided PIN, then opens an RFCOMM stream with retries.
 
         Args:
             address: Bluetooth MAC address (e.g., "7E:91:2B:C4:AF:08")

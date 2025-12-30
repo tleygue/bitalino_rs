@@ -34,7 +34,12 @@ const DEFAULT_IO_TIMEOUT_SECS: u64 = 5;
 const MAX_CONNECT_RETRIES: u32 = 3;
 const RETRY_DELAY_MS: u64 = 500;
 
-/// High level connector that pairs the device and opens an RFCOMM socket without needing root.
+/// High level connector that opens an RFCOMM socket without needing root.
+///
+/// Behavior depends on build features:
+/// - Default (manual RFCOMM): uses raw RFCOMM and expects the device is already
+///   paired/trusted (you provide the MAC).
+/// - With `bluez` feature: discovers/pairs (PIN) and connects via BlueZ.
 #[derive(Debug, Clone)]
 pub struct BluetoothConnector {
     pub channel: u8,

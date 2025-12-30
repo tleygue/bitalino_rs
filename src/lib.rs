@@ -1,7 +1,10 @@
 //! BITalino Rust driver with Python bindings.
 //!
 //! This crate provides a robust interface to BITalino biosignal acquisition devices
-//! via Bluetooth RFCOMM, with automatic pairing and no root privileges required.
+//! via Bluetooth RFCOMM. By default it uses a raw RFCOMM socket and expects the
+//! device to be pre-paired/trusted (you provide the MAC). When built with the
+//! optional `bluez` feature, it can also discover/pair/connect automatically via
+//! BlueZ, still without needing root.
 //!
 //! # Timing and Synchronization
 //!
@@ -239,7 +242,10 @@ impl From<DeviceState> for PyDeviceState {
 /// BITalino device driver.
 ///
 /// Provides methods to connect, configure, and read biosignal data from
-/// BITalino devices via Bluetooth. No root privileges required.
+/// BITalino devices via Bluetooth. No root privileges required. The default
+/// backend uses a raw RFCOMM socket and assumes the device is already
+/// paired/trusted; with the optional `bluez` feature enabled it can also
+/// discover/pair/connect automatically.
 ///
 /// Example:
 ///     >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
@@ -281,8 +287,9 @@ impl PyBitalino {
 
     /// Connect to a BITalino device via Bluetooth.
     ///
-    /// Automatically discovers, pairs (if needed), and connects to the device.
-    /// No root privileges required.
+    /// Default: uses a raw RFCOMM socket and expects the device to be
+    /// pre-paired/trusted; just pass the MAC. Optional `bluez` feature: will
+    /// discover, pair (using the provided PIN), and connect automatically.
     ///
     /// Args:
     ///     mac: The MAC address of the device (e.g., "7E:91:2B:C4:AF:08")
