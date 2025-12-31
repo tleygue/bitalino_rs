@@ -27,7 +27,7 @@ wheels = [
 
 [[package]]
 name = "bitalino-rs"
-version = "0.1.10"
+version = "0.1.11"
 source = { editable = "." }
 
 [package.dev-dependencies]
