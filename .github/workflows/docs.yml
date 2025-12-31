@@ -38,6 +38,9 @@ jobs:
             mkdocstrings \
             mkdocstrings-python
 
+      - name: Test rust code
+        run: cargo test --doc
+
       - name: Build Rust docs
         run: cargo doc --no-deps
 

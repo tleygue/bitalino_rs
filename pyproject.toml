@@ -1,7 +1,7 @@
 [project]
 name = "bitalino-rs"
-version = "0.1.8"
-description = "Add your description here"
+version = "0.1.11"
+description = "BITalino Bluetooth/serial driver with Python bindings (PyO3, abi3)."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
@@ -51,7 +51,7 @@ indent-style = "space"
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "py311"
+python_version = "3.11"
 warn_unused_configs = true
 exclude = ["^target/"]
 mypy_path = ["bitalino_rs"]
@@ -66,7 +66,7 @@ major_version_zero = true
 version_files = [
     "pyproject.toml:project.version",
     "Cargo.toml:^version",
-    "Cargo.lock"
+    "Cargo.lock:name = \"bitalino_rs\"\\nversion = \"{version}\"",
 ]
 # Use a hook to update Cargo.lock and stage it
 post_bump_hooks = [

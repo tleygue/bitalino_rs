@@ -8,8 +8,8 @@ use bluer::agent::{Agent, RequestConfirmationFn, RequestPinCodeFn};
 use bluer::rfcomm::{SocketAddr, Stream};
 use bluer::{AdapterEvent, Address, Session};
 use futures::StreamExt;
+use log::{debug, info, warn};
 use tokio::runtime::Runtime;
-use tracing::{debug, info, warn};
 
 use crate::errors::{BluetoothError, DriverError, Result};
 
@@ -82,7 +82,7 @@ impl BluetoothConnector {
             .map_err(|e| DriverError::Bluetooth(BluetoothError::Connection(e.to_string())))?;
 
         if !device.is_paired().await.unwrap_or(false) {
-            info!(%mac, "pairing device via bluer");
+            info!("pairing device via bluer: mac={}", mac);
             tokio::time::timeout(self.pair_timeout, device.pair())
                 .await
                 .map_err(|_| DriverError::Timeout("pairing timed out".into()))
@@ -103,7 +103,10 @@ impl BluetoothConnector {
         for attempt in 0..self.max_retries {
             if attempt > 0 {
                 let delay = self.retry_delay * (1 << (attempt - 1).min(3));
-                warn!(%mac, attempt, "retrying RFCOMM connection after {:?}", delay);
+                warn!(
+                    "retrying RFCOMM connection after {:?} (mac={}, attempt={})",
+                    delay, mac, attempt
+                );
                 tokio::time::sleep(delay).await;
             }
 
@@ -111,15 +114,18 @@ impl BluetoothConnector {
                 Ok(stream) => {
                     // Verify connection is actually usable
                     if let Err(e) = stream.verify_connected() {
-                        warn!(%mac, "connection verification failed: {}", e);
+                        warn!("connection verification failed: mac={}, error={}", mac, e);
                         last_error = Some(e);
                         continue;
                     }
-                    info!(%mac, "RFCOMM connection established");
+                    info!("RFCOMM connection established: mac={}", mac);
                     return Ok(stream);
                 }
                 Err(e) => {
-                    warn!(%mac, attempt, "RFCOMM connection attempt failed: {}", e);
+                    warn!(
+                        "RFCOMM connection attempt failed: mac={}, attempt={}, error={}",
+                        mac, attempt, e
+                    );
                     last_error = Some(e);
                 }
             }
@@ -224,7 +230,7 @@ async fn wait_for_device(
     while let Some(evt) = events.next().await {
         match evt {
             AdapterEvent::DeviceAdded(addr) if addr == address => {
-                info!(%addr, "device discovered");
+                info!("device discovered: mac={}", addr);
                 return Ok(());
             }
             _ => {}
@@ -243,7 +249,10 @@ async fn wait_for_device(
 }
 
 async fn open_rfcomm(address: Address, channel: u8, timeout: Duration) -> Result<RfcommStream> {
-    debug!(%address, channel, "opening RFCOMM socket");
+    debug!(
+        "opening RFCOMM socket: mac={}, channel={}",
+        address, channel
+    );
 
     let target = SocketAddr::new(address, channel);
     let stream = tokio::time::timeout(timeout, Stream::connect(target))

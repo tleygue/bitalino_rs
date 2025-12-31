@@ -1,20 +1,39 @@
-"""Type stubs for the BITalino Rust core module."""
+"""Type stubs for the compiled BITalino core extension.
 
-from typing import Any
+These stubs mirror the Rust implementation shipped as ``_core``. The extension
+handles Bluetooth RFCOMM/serial transport, command encoding, CRC checking, and
+timing reconstruction; Python sees ergonomic classes and functions with rich
+type information for IDEs and static analyzers.
+"""
+
+from typing import Any, Literal
+
+SamplingRate = Literal[1, 10, 100, 1000]
 
 # Module constants
-DEFAULT_SAMPLING_RATE: int
-VALID_SAMPLING_RATES: list[int]
+DEFAULT_SAMPLING_RATE: SamplingRate
+VALID_SAMPLING_RATES: list[SamplingRate]
+
+# Logging helpers
+def enable_rust_logs(level: str | None = ...) -> None:
+    """Enable Rust-side logging bridged into Python's ``logging`` module."""
+
+def reset_log_cache() -> None:
+    """Clear cached Python logger lookups (useful after logging reconfiguration)."""
 
 class Frame:
-    """
-    A single BITalino data frame (immutable, hashable).
+    """Single BITalino frame (immutable, hashable).
+
+    Under the hood, frames are emitted at the configured sampling rate by the
+    device's crystal. Each frame carries a 4-bit sequence counter (0-15) so you
+    can detect lost samples, plus the digital lines and the analog channels you
+    asked for in ``start()``.
 
     Attributes:
-        sequence: Frame sequence number (0-15, wrapping). Use to detect dropped frames.
-        digital: Digital channel values [I1, I2, O1, O2] as list of 0/1.
-        analog: Analog channel values (10-bit, 0-1023).
-        n_channels: Number of analog channels in this frame.
+        sequence: Frame sequence number (0-15, wraps). Discontinuities indicate drops.
+        digital: Digital lines as [I1, I2, O1, O2] with values 0/1.
+        analog: Analog channel values (10-bit, 0-1023) in channel order.
+        n_channels: Number of analog channels present (len of ``analog``).
     """
 
     sequence: int
@@ -32,15 +51,19 @@ class Frame:
         ...
 
 class FrameBatch:
-    """
-    Result from reading a batch of frames, includes timing and error info.
+    """Batch of frames with timing and integrity diagnostics.
+
+    The Rust layer timestamps when the batch read begins and tallies integrity
+    issues. CRC failures mean corrupted frames were dropped; sequence gaps mean
+    frames were missing according to the 4-bit counter. Both are surfaced so you
+    can decide whether to trust or re-acquire data.
 
     Attributes:
-        frames: List of Frame objects.
-        timestamp_us: Microseconds since acquisition started when batch was read.
-        crc_errors: Number of frames discarded due to CRC errors.
-        sequence_gaps: Number of detected dropped frames (from sequence discontinuities).
-        has_errors: True if any CRC errors or sequence gaps occurred.
+        frames: Frames delivered for this read call.
+        timestamp_us: Microseconds since acquisition started at the moment of read.
+        crc_errors: Count of frames dropped due to failed CRC.
+        sequence_gaps: Count of discontinuities detected in the 4-bit sequence.
+        has_errors: True if either CRC errors or sequence gaps occurred.
     """
 
     frames: list[Frame]
@@ -53,11 +76,12 @@ class FrameBatch:
     def __len__(self) -> int: ...
 
 class DeviceState:
-    """
-    Device state information (BITalino 2.0+ only).
+    """Snapshot of device status (BITalino 2.0+ only).
 
-    Contains current values of all analog/digital channels and battery status.
-    Obtained by calling Bitalino.state() when not in acquisition mode.
+    Captured only when the device is idle. Useful for health checks without
+    starting acquisition. Battery voltage is derived from the raw ADC using the
+    official voltage-divider formula; the low-battery flag compares against the
+    configured threshold (3.4-3.8V window).
 
     Attributes:
         analog: All 6 analog channel values (10-bit, 0-1023).
@@ -65,7 +89,7 @@ class DeviceState:
         battery_threshold: Current battery threshold setting (0-63).
         digital: Digital channel states [I1, I2, O1, O2].
         battery_voltage: Approximate battery voltage in Volts.
-        is_battery_low: True if battery is below threshold setting.
+        is_battery_low: True if battery is below the configured threshold.
     """
 
     analog: list[int]
@@ -81,35 +105,27 @@ class DeviceState:
         ...
 
 class Bitalino:
-    """
-    BITalino device driver.
+    """Stateful BITalino driver exposed to Python.
 
-    Provides an interface to BITalino biosignal acquisition devices via
-    Bluetooth RFCOMM or serial connections. Supports automatic pairing
-    without root privileges.
+    The Rust core holds the transport (Bluetooth RFCOMM or serial), encodes the
+    wire protocol, enforces timing semantics, and normalizes errors into clear
+    Python exceptions. Sampling is clocked by the device; the host reconstructs
+    time using frame sequence numbers plus a host-side timestamp taken per read.
 
     Attributes:
-        sampling_rate: Currently configured sampling rate in Hz.
-        elapsed_us: Microseconds since acquisition started (None if not started).
-        is_bitalino2: True if device is BITalino 2.0+ (supports extended features).
+        sampling_rate: Current sampling rate in Hz (one of 1, 10, 100, 1000).
+        elapsed_us: Microseconds since acquisition started (None until started).
+        is_bitalino2: True if device reports firmware >= 4.2 (enables extras).
 
     Example:
-        >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
-        >>> print(f"Firmware: {device.version()}")
-        >>> print(f"BITalino 2.0: {device.is_bitalino2}")
-        >>>
-        >>> # Check battery state (BITalino 2.0+ only)
-        >>> if device.is_bitalino2:
-        ...     state = device.state()
-        ...     print(f"Battery: {state.battery_voltage:.2f}V")
-        >>>
-        >>> device.start(rate=1000, channels=[0, 1, 2])
-        >>> batch = device.read_timed(1000)
-        >>> print(f"Got {len(batch)} frames, {batch.crc_errors} errors")
-        >>> device.stop()
+        >>> dev = Bitalino.connect("7E:91:2B:C4:AF:08")
+        >>> fw = dev.version()
+        >>> dev.start(rate=1000, channels=[0, 1, 2])
+        >>> batch = dev.read_timed(500)
+        >>> dev.stop()
     """
 
-    sampling_rate: int
+    sampling_rate: SamplingRate
     elapsed_us: int | None
     is_bitalino2: bool
 
@@ -133,9 +149,9 @@ class Bitalino:
         """
         Connect to a BITalino device via Bluetooth.
 
-        Automatically discovers the device, pairs with the given PIN,
-        and establishes an RFCOMM connection. No root privileges required.
-        Includes automatic retry logic for flaky connections.
+        The Rust backend discovers the device, pairs with the provided PIN, and
+        opens an RFCOMM stream with retries. No root privileges are required on
+        typical Linux setups.
 
         Args:
             address: Bluetooth MAC address (e.g., "7E:91:2B:C4:AF:08")
@@ -153,7 +169,8 @@ class Bitalino:
         """
         Get the BITalino firmware version string.
 
-        Also detects if device is BITalino 2.0+ (sets is_bitalino2 property).
+        Also sets ``is_bitalino2`` based on firmware (>= 4.2) to gate extended
+        features like ``state()``, ``pwm()``, and idle ``trigger()``.
 
         Returns:
             Firmware version (e.g., "BITalino_v5.2")
@@ -163,13 +180,17 @@ class Bitalino:
         """
         ...
 
-    def start(self, rate: int = 1000, channels: list[int] | None = None) -> None:
+    def start(self, rate: SamplingRate = 1000, channels: list[int] | None = None) -> None:
         """
         Start data acquisition.
 
         Args:
             rate: Sampling rate in Hz. Must be 1, 10, 100, or 1000. Default: 1000.
             channels: List of analog channels to acquire (0-5). Default: all channels.
+
+        Under the hood, the driver configures the frame size for the selected
+        channels and clears timing state so sequence deltas and timestamps are
+        consistent for subsequent reads.
 
         Raises:
             ValueError: If rate or channels are invalid
@@ -197,6 +218,9 @@ class Bitalino:
             List of Frame objects containing the acquired data.
             May contain fewer frames than requested if CRC errors occur.
 
+        Under the hood, CRC-failed frames are dropped; sequence gaps are not
+        surfaced here—use ``read_timed`` for diagnostics.
+
         Raises:
             IOError: If reading fails
         """
@@ -214,6 +238,10 @@ class Bitalino:
 
         Returns:
             FrameBatch with frames, timestamp_us, crc_errors, and sequence_gaps.
+
+        Under the hood, the batch timestamp is captured before reading to avoid
+        Bluetooth buffering skew; CRC failures and sequence discontinuities are
+        tallied for you.
 
         Raises:
             IOError: If reading fails
@@ -280,6 +308,7 @@ class Bitalino:
 
         Raises:
             RuntimeError: If BITalino 1.0 and not in acquisition mode
+            ValueError: If outputs length/value is invalid for the device type
         """
         ...
 
@@ -298,6 +327,7 @@ class Bitalino:
 
         Raises:
             RuntimeError: If device is not BITalino 2.0+
+            ValueError: If value is outside 0-255
         """
         ...
 
