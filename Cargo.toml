@@ -2,7 +2,15 @@
 name = "bitalino_rs"
 version = "0.1.8"
 edition = "2021"
+description = "BITalino Bluetooth/serial driver with Python bindings (PyO3, abi3)."
+homepage = "https://github.com/tleygue/bitalino_rs"
+repository = "https://github.com/tleygue/bitalino_rs"
+documentation = "https://tleygue.github.io/bitalino_rs/rust-docs/bitalino_rs/"
+readme = "README.md"
 license-file = "LICENSE"
+keywords = ["bitalino", "bluetooth", "pyo3", "abi3", "biosignal"]
+categories = ["api-bindings", "science", "hardware-support"]
+rust-version = "1.78"
 
 [lib]
 name = "_core"

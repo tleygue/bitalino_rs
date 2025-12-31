@@ -1,7 +1,7 @@
 [project]
 name = "bitalino-rs"
 version = "0.1.8"
-description = "Add your description here"
+description = "BITalino Bluetooth/serial driver with Python bindings (PyO3, abi3)."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
