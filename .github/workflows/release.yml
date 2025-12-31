@@ -115,6 +115,9 @@ jobs:
             exit 1
           fi
 
+      - name: Refresh lockfile
+        run: cargo generate-lockfile
+
       - name: Package crate
         run: cargo package --locked
 
