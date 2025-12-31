@@ -7,8 +7,8 @@ name: Release
       - 'v*'
 
 permissions:
-  id-token: write  # Required for OIDC
-  contents: write  # Needed for release uploads
+  id-token: write  # Required for PyPI OIDC
+  contents: write  # Required for GitHub Release uploads
 
 jobs:
   linux-wheels:
@@ -68,8 +68,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Download wheels artifact
         uses: actions/download-artifact@v4
@@ -82,63 +80,10 @@ jobs:
         with:
           packages-dir: dist
 
-  crate-artifacts:
-    name: Package crate and upload release assets
-    needs: linux-wheels
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Derive release metadata
-        id: meta
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "crate=bitalino_rs" >> "$GITHUB_OUTPUT"
-
-      - name: Install system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libdbus-1-dev libudev-dev
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Ensure tag matches crate version
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          CRATE_VERSION=$(cargo metadata --format-version 1 --no-deps \
-            | jq -r '.packages[] | select(.name=="bitalino_rs").version')
-          if [ "$VERSION" != "$CRATE_VERSION" ]; then
-            echo "Tag version $VERSION does not match" \
-              "Cargo version $CRATE_VERSION" >&2
-            exit 1
-          fi
-
-      - name: Refresh lockfile
-        run: cargo generate-lockfile
-
-      - name: Package crate
-        run: cargo package --locked
-
-      - name: Upload crate artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: crate-${{ steps.meta.outputs.version }}
-          path: target/package/*.crate
-
-      - name: Upload crate to GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: target/package/*.crate
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-crates-io:
+  publish-crate:
     name: Publish crate to crates.io
     environment: crates-io
-    needs: crate-artifacts
+    needs: linux-wheels  # Ensures we only publish if the build succeeds
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -152,6 +97,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --locked
+        uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          # The action automatically handles 'cargo package' and 'cargo publish'
