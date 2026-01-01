@@ -1,6 +1,6 @@
 [package]
 name = "bitalino_rs"
-version = "0.1.12"
+version = "0.1.13"
 edition = "2021"
 description = "BITalino Bluetooth/serial driver with Python bindings (PyO3, abi3)."
 homepage = "https://github.com/tleygue/bitalino_rs"
