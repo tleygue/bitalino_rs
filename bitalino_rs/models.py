@@ -8,7 +8,7 @@ hardware crystal (1, 10, 100, 1000 Hz).
 
 from typing import Literal
 
-from bitalino_rs._core import (
+from bitalino_rs._bitalino_core import (
     DEFAULT_SAMPLING_RATE,
     VALID_SAMPLING_RATES,
     DeviceState,

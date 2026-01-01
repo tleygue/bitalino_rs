@@ -22,11 +22,17 @@ const RETRY_DELAY_MS: u64 = 500;
 /// High level connector that pairs the device and opens an RFCOMM socket without needing root.
 #[derive(Debug, Clone)]
 pub struct BluetoothConnector {
+    /// RFCOMM channel to connect to (BITalino default: 1).
     pub channel: u8,
+    /// Per-operation I/O timeout applied to the RFCOMM socket.
     pub io_timeout: Duration,
+    /// How long to scan for the device before failing.
     pub scan_timeout: Duration,
+    /// How long to wait for pairing to complete.
     pub pair_timeout: Duration,
+    /// Maximum retry attempts for establishing RFCOMM.
     pub max_retries: u32,
+    /// Delay between retries (exponential backoff uses this as the base).
     pub retry_delay: Duration,
 }
 
@@ -137,7 +143,7 @@ impl BluetoothConnector {
     }
 }
 
-/// Simple RFCOMM stream that behaves like a Read/Write object.
+/// Simple RFCOMM stream that behaves like a blocking Read/Write object.
 pub struct RfcommStream {
     file: File,
     #[allow(dead_code)]

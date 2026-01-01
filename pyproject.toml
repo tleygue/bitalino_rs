@@ -1,6 +1,6 @@
 [project]
 name = "bitalino-rs"
-version = "0.1.11"
+version = "0.1.13"
 description = "BITalino Bluetooth/serial driver with Python bindings (PyO3, abi3)."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -25,7 +25,7 @@ docs = [
 bitalino-rs = "bitalino_rs:main"
 
 [tool.maturin]
-module-name = "bitalino_rs._core"
+module-name = "bitalino_rs._bitalino_core"
 python-packages = ["bitalino_rs"]
 
 [tool.uv]

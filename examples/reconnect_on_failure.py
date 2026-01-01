@@ -33,7 +33,7 @@ def connect_with_retries(mac: str, retries: int, base: float, cap: float) -> Bit
         except Exception as exc:  # pragma: no cover - runtime behavior
             last_error = exc
             wait = backoff(base, cap, attempt)
-            print(f"connect failed ({exc}); retrying in {wait:.2f}s ({attempt+1}/{retries})")
+            print(f"connect failed ({exc}); retrying in {wait:.2f}s ({attempt + 1}/{retries})")
             time.sleep(wait)
     raise SystemExit(f"failed to connect after {retries} attempts: {last_error}")
 
