@@ -492,10 +492,11 @@ impl PyBitalino {
 
 /// The Python module definition
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _bitalino_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize Python logging bridge (no-op if already done)
     logging::init_python_logging(m.py())?;
 
+    // Add classes
     m.add_class::<PyBitalino>()?;
     m.add_class::<PyFrame>()?;
     m.add_class::<PyFrameBatch>()?;

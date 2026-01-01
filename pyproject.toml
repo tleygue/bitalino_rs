@@ -25,7 +25,7 @@ docs = [
 bitalino-rs = "bitalino_rs:main"
 
 [tool.maturin]
-module-name = "bitalino_rs._core"
+module-name = "bitalino_rs._bitalino_core"
 python-packages = ["bitalino_rs"]
 
 [tool.uv]
