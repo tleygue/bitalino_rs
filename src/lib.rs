@@ -237,7 +237,7 @@ impl From<DeviceState> for PyDeviceState {
 }
 
 /// BITalino device driver.
-///
+/// Python-facing BITalino driver wrapper for connection and acquisition.
 /// Provides methods to connect, configure, and read biosignal data from
 /// BITalino devices via Bluetooth. No root privileges required.
 ///
@@ -254,11 +254,13 @@ struct PyBitalino {
 }
 
 #[pyfunction]
+/// Enable Rust-to-Python logging bridge at the given level (or env default).
 fn enable_rust_logs(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
     logging::set_python_log_level_str(py, level)
 }
 
 #[pyfunction]
+/// Clear cached Python logger handles; call after reconfiguring Python logging.
 fn reset_log_cache() -> PyResult<()> {
     logging::reset_python_logging_cache();
     Ok(())

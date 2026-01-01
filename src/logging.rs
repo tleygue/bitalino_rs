@@ -36,7 +36,7 @@ fn parse_level(input: Option<&str>) -> Option<LevelFilter> {
     input.and_then(|s| s.parse::<LevelFilter>().ok())
 }
 
-/// Initialize logging for Rust binaries (stderr formatter).
+/// Initialize logging for Rust binaries (stderr formatter) based on `BITALINO_LOG`/`RUST_LOG`.
 pub fn init_rust_logging() {
     let level = env_level();
     RUST_LOG_ONCE.call_once(|| {
@@ -185,7 +185,8 @@ impl Log for PyLogger {
     fn flush(&self) {}
 }
 
-/// Initialize Python-facing logging bridge. Safe to call multiple times.
+/// Initialize the Python-facing logging bridge so Rust logs flow into Python's `logging`.
+/// Safe to call multiple times; a logger is installed on first call.
 pub fn init_python_logging(py: Python<'_>) -> PyResult<()> {
     let level = env_level();
     PY_LOG_ONCE.call_once(|| match PyLogger::new(py, level) {
@@ -201,7 +202,7 @@ pub fn init_python_logging(py: Python<'_>) -> PyResult<()> {
     Ok(())
 }
 
-/// Reset pyo3-log caches (useful if Python logging config changes at runtime).
+/// Reset the cached per-target Python loggers (call after changing Python logging config).
 pub fn reset_python_logging_cache() {
     if let Some(logger) = PY_LOGGER.get() {
         if let Ok(mut cache) = logger.cache.lock() {
@@ -230,6 +231,7 @@ pub fn set_python_log_level(py: Python<'_>, level: LevelFilter) -> PyResult<()> 
     Ok(())
 }
 
+/// Parse a string log level (or env fallback) and apply it to the Python bridge.
 pub fn set_python_log_level_str(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
     let lvl = parse_level(level).unwrap_or(env_level());
     set_python_log_level(py, lvl)
