@@ -230,6 +230,8 @@ pub struct Bitalino {
     last_seq: Option<u8>,
     /// Whether device is BITalino 2.0+ (supports state(), pwm(), trigger in idle)
     is_bitalino2: bool,
+    /// Whether device is BITalino firmware >= 5.2 (state reply length differs)
+    is_bitalino52: bool,
 }
 
 impl Bitalino {
@@ -254,7 +256,8 @@ impl Bitalino {
             sampling_rate: SamplingRate::Hz1000,
             start_time: None,
             last_seq: None,
-            is_bitalino2: false, // Will be detected on first version() call
+            is_bitalino2: false,  // Will be detected on first version() call
+            is_bitalino52: false, // Will be detected on first version() call
         })
     }
 
@@ -269,7 +272,8 @@ impl Bitalino {
             sampling_rate: SamplingRate::Hz1000,
             start_time: None,
             last_seq: None,
-            is_bitalino2: false, // Will be detected on first version() call
+            is_bitalino2: false,  // Will be detected on first version() call
+            is_bitalino52: false, // Will be detected on first version() call
         }
     }
 
@@ -350,35 +354,41 @@ impl Bitalino {
         let version = String::from_utf8_lossy(&response).trim().to_string();
         debug!("Device version: {}", version);
 
-        // Detect BITalino 2.0+ based on version string
+        // Drain any remaining delimiters from the response (e.g., LF after CR).
+        // If left unread, these bytes can desynchronize the next framed read and
+        // trigger a spurious CRC error.
+        let _ = self.flush_input();
+
+        // Detect BITalino 2.0+/5.2 based on version string
         // Format: "BITalino_v5.2" or "BITalino V5.2"
-        self.is_bitalino2 = self.detect_bitalino2(&version);
-        if self.is_bitalino2 {
-            debug!("Detected BITalino 2.0+ device");
+        if let Some(num) = self.parse_version_number(&version) {
+            self.is_bitalino2 = num >= 4.2;
+            self.is_bitalino52 = num >= 5.2;
+            if self.is_bitalino2 {
+                debug!("Detected BITalino 2.0+ device");
+            }
+            if self.is_bitalino52 {
+                debug!("Detected BITalino firmware >=5.2 (17-byte state response)");
+            }
         }
 
         Ok(version)
     }
 
-    /// Detect if device is BITalino 2.0+ based on version string.
-    fn detect_bitalino2(&self, version: &str) -> bool {
-        // BITalino 2.0 has version >= 4.2
+    /// Parse version number from firmware string.
+    /// Returns Some(major.minor) as f32, or None if it cannot be parsed.
+    fn parse_version_number(&self, version: &str) -> Option<f32> {
         let version_lower = version.to_lowercase();
 
-        // Try to extract version number after "_v" or "v"
-        let version_num = if let Some(pos) = version_lower.find("_v") {
+        let num_str = if let Some(pos) = version_lower.find("_v") {
             version_lower[pos + 2..].chars().take(3).collect::<String>()
         } else if let Some(pos) = version_lower.find('v') {
             version_lower[pos + 1..].chars().take(3).collect::<String>()
         } else {
-            return false;
+            return None;
         };
 
-        if let Ok(num) = version_num.parse::<f32>() {
-            num >= 4.2
-        } else {
-            false
-        }
+        num_str.parse::<f32>().ok()
     }
 
     /// Start data acquisition at the specified sampling rate.
@@ -539,11 +549,16 @@ impl Bitalino {
         // Send state command
         self.send_command(CMD_STATE)?;
 
-        // Read 16-byte response
-        // Response format (from official BITalino API):
-        // <A1 (2 bytes)> <A2 (2 bytes)> <A3 (2 bytes)> <A4 (2 bytes)> <A5 (2 bytes)> <A6 (2 bytes)>
-        // <ABAT (2 bytes)> <Battery threshold (1 byte)> <Digital ports + CRC (1 byte: I1 I2 O1 O2 CRC4)>
-        let mut data = [0u8; 16];
+        // Read state response (length depends on firmware)
+        // BITalino <=5.1: 16 bytes
+        // BITalino >=5.2: 17 bytes (one extra reserved byte before battery threshold)
+        let (n_bytes, offset): (usize, isize) = if self.is_bitalino52 {
+            (17, -1)
+        } else {
+            (16, 0)
+        };
+
+        let mut data = vec![0u8; n_bytes];
         self.transport.read_exact(&mut data)?;
 
         // Flush any extra data the device might have sent
@@ -564,11 +579,12 @@ impl Bitalino {
         //             x = x ^ 0x03
         //         x = x ^ ((decodedData[i] >> bit) & 0x01)
 
-        let received_crc = data[15] & 0x0F;
+        let last = data.len() - 1;
+        let received_crc = data[last] & 0x0F;
 
         // Clear CRC bits in last byte before calculation
-        let mut data_for_crc = data;
-        data_for_crc[15] &= 0xF0;
+        let mut data_for_crc = data.clone();
+        data_for_crc[last] &= 0xF0;
 
         // Calculate CRC exactly as in official Python code
         let mut x: u8 = 0;
@@ -601,28 +617,28 @@ impl Bitalino {
         // decodedData[-3] << 8 | decodedData[-4] = data[13] << 8 | data[12] (battery)
         // etc.
 
+        // Helper to index from the end with optional offset (to match official API)
+        let idx = |rel: isize| -> usize { ((data.len() as isize) + rel) as usize };
+
+        let digital_byte = data[last];
         let digital = [
-            (data[15] >> 7) & 0x01, // I1
-            (data[15] >> 6) & 0x01, // I2
-            (data[15] >> 5) & 0x01, // O1
-            (data[15] >> 4) & 0x01, // O2
+            (digital_byte >> 7) & 0x01, // I1
+            (digital_byte >> 6) & 0x01, // I2
+            (digital_byte >> 5) & 0x01, // O1
+            (digital_byte >> 4) & 0x01, // O2
         ];
 
-        let battery_threshold = data[14];
+        let battery_threshold = data[idx(-2 + offset)];
 
-        // Battery: decodedData[-3] << 8 | decodedData[-4] = data[13] << 8 | data[12]
-        let battery = ((data[13] as u16) << 8) | (data[12] as u16);
+        // Battery and analog channels follow the official layout with firmware-dependent offset
+        let battery = ((data[idx(-3 + offset)] as u16) << 8) | (data[idx(-4 + offset)] as u16);
 
-        // Analog channels from official code:
-        // A6 = decodedData[-5] << 8 | decodedData[-6] = data[11] << 8 | data[10]
-        // A5 = decodedData[-7] << 8 | decodedData[-8] = data[9] << 8 | data[8]
-        // etc.
-        let a6 = ((data[11] as u16) << 8) | (data[10] as u16);
-        let a5 = ((data[9] as u16) << 8) | (data[8] as u16);
-        let a4 = ((data[7] as u16) << 8) | (data[6] as u16);
-        let a3 = ((data[5] as u16) << 8) | (data[4] as u16);
-        let a2 = ((data[3] as u16) << 8) | (data[2] as u16);
-        let a1 = ((data[1] as u16) << 8) | (data[0] as u16);
+        let a6 = ((data[idx(-5 + offset)] as u16) << 8) | (data[idx(-6 + offset)] as u16);
+        let a5 = ((data[idx(-7 + offset)] as u16) << 8) | (data[idx(-8 + offset)] as u16);
+        let a4 = ((data[idx(-9 + offset)] as u16) << 8) | (data[idx(-10 + offset)] as u16);
+        let a3 = ((data[idx(-11 + offset)] as u16) << 8) | (data[idx(-12 + offset)] as u16);
+        let a2 = ((data[idx(-13 + offset)] as u16) << 8) | (data[idx(-14 + offset)] as u16);
+        let a1 = ((data[idx(-15 + offset)] as u16) << 8) | (data[idx(-16 + offset)] as u16);
 
         let analog = [a1, a2, a3, a4, a5, a6];
 
