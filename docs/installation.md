@@ -7,8 +7,7 @@
 - Bluetooth adapter on Linux
 
 Transport requirements:
-- **Default (manual RFCOMM)**: device must already be paired/trusted (e.g., via `bluetoothctl`) and you must know the MAC. No BlueZ daemon required at runtime.
-- **BlueZ mode**: enable Cargo feature `bluez` to auto-discover/pair/connect; requires BlueZ daemon and dbus headers at build time.
+- Device must already be paired/trusted (e.g., via `bluetoothctl`) and you must know the MAC. No BlueZ daemon or tokio/dbus stack is required.
 
 ## Install from PyPI
 
@@ -16,11 +15,7 @@ Transport requirements:
 uv add bitalino-rs
 ```
 
-By default this installs the manual RFCOMM backend. To build the Python wheel with BlueZ support instead:
-
-```bash
-UV_NO_SYNC=1 cargo build --features bluez
-```
+This installs the minimal RFCOMM backend used for both the crate and the Python wheel.
 
 ## Develop from source (uv-first)
 
@@ -30,14 +25,8 @@ cd bitalino_rs
 uv sync          # installs Python tooling declared in pyproject
 ```
 
-Build with manual RFCOMM (default):
+Build the crate/wheel (minimal RFCOMM backend):
 
 ```bash
 cargo build --release
-```
-
-Build with BlueZ auto-pairing:
-
-```bash
-cargo build --release --features bluez
 ```

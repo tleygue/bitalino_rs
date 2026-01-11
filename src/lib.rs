@@ -1,10 +1,9 @@
 //! BITalino Rust driver with Python bindings.
 //!
 //! This crate provides a robust interface to BITalino biosignal acquisition devices
-//! via Bluetooth RFCOMM. By default it uses a raw RFCOMM socket and expects the
-//! device to be pre-paired/trusted (you provide the MAC). When built with the
-//! optional `bluez` feature, it can also discover/pair/connect automatically via
-//! BlueZ, still without needing root.
+//! via Bluetooth RFCOMM using a minimal libc-based stack. It uses a raw RFCOMM
+//! socket and expects the device to be pre-paired/trusted (you provide the MAC);
+//! no BlueZ/tokio/dbus dependencies or privileged operations are required.
 //!
 //! # Timing and Synchronization
 //!
@@ -255,10 +254,9 @@ impl From<DeviceState> for PyDeviceState {
 /// BITalino device driver.
 /// Python-facing BITalino driver wrapper for connection and acquisition.
 /// Provides methods to connect, configure, and read biosignal data from
-/// BITalino devices via Bluetooth. No root privileges required. The default
-/// backend uses a raw RFCOMM socket and assumes the device is already
-/// paired/trusted; with the optional `bluez` feature enabled it can also
-/// discover/pair/connect automatically.
+/// BITalino devices via Bluetooth. No root privileges required. The backend
+/// uses a raw RFCOMM socket and assumes the device is already paired/trusted
+/// (e.g., via `bluetoothctl`).
 ///
 /// Example:
 ///     >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
@@ -302,13 +300,13 @@ impl PyBitalino {
 
     /// Connect to a BITalino device via Bluetooth.
     ///
-    /// Default: uses a raw RFCOMM socket and expects the device to be
-    /// pre-paired/trusted; just pass the MAC. Optional `bluez` feature: will
-    /// discover, pair (using the provided PIN), and connect automatically.
+    /// Uses a raw RFCOMM socket and expects the device to already be
+    /// paired/trusted; just pass the MAC. The `pin` argument is accepted for API
+    /// compatibility but is ignored by the minimal backend.
     ///
     /// Args:
     ///     mac: The MAC address of the device (e.g., "7E:91:2B:C4:AF:08")
-    ///     pin: The PIN code for pairing (default: "1234")
+    ///     pin: The PIN code (ignored; keep default "1234")
     ///
     /// Returns:
     ///     A connected Bitalino instance

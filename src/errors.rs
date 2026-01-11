@@ -2,7 +2,6 @@
 use std::io;
 use thiserror::Error;
 
-#[cfg_attr(not(feature = "bluez"), allow(dead_code))]
 #[derive(Debug, Error)]
 pub enum DriverError {
     /// I/O failures from stdlib operations.
@@ -43,7 +42,6 @@ pub enum DriverError {
     NotReady(String),
 }
 
-#[cfg_attr(not(feature = "bluez"), allow(dead_code))]
 #[derive(Debug, Error)]
 pub enum BluetoothError {
     /// Adapter scan failed to discover the requested MAC address.
