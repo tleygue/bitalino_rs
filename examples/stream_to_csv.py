@@ -62,7 +62,7 @@ def main() -> int:
                     ]
                 )
             print(
-                f"batch {batch_idx+1}/{args.batches}: frames={len(batch.frames)} "
+                f"batch {batch_idx + 1}/{args.batches}: frames={len(batch.frames)} "
                 f"crc={batch.crc_errors} gaps={batch.sequence_gaps}"
             )
             time.sleep(0.05)

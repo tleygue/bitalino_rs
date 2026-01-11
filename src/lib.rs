@@ -15,6 +15,7 @@
 //! 2. Use sequence numbers to detect dropped frames
 //! 3. Calculate sample times as: `start_time + sample_index / sampling_rate`
 
+use log::warn;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -240,7 +241,7 @@ impl From<DeviceState> for PyDeviceState {
 }
 
 /// BITalino device driver.
-///
+/// Python-facing BITalino driver wrapper for connection and acquisition.
 /// Provides methods to connect, configure, and read biosignal data from
 /// BITalino devices via Bluetooth. No root privileges required. The default
 /// backend uses a raw RFCOMM socket and assumes the device is already
@@ -260,11 +261,13 @@ struct PyBitalino {
 }
 
 #[pyfunction]
+/// Enable Rust-to-Python logging bridge at the given level (or env default).
 fn enable_rust_logs(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
     logging::set_python_log_level_str(py, level)
 }
 
 #[pyfunction]
+/// Clear cached Python logger handles; call after reconfiguring Python logging.
 fn reset_log_cache() -> PyResult<()> {
     logging::reset_python_logging_cache();
     Ok(())
@@ -308,8 +311,16 @@ impl PyBitalino {
             .pair_and_connect(mac, pin)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyConnectionError, _>(e.to_string()))?;
 
+        let mut inner = Bitalino::from_rfcomm(stream);
+
+        // Perform an initial handshake to bring the device to a known idle state
+        // and verify the RFCOMM link.
+        if let Err(e) = inner.version() {
+            warn!("Initial version() handshake failed after connect: {}", e);
+        }
+
         Ok(PyBitalino {
-            inner: Bitalino::from_rfcomm(stream),
+            inner,
             sampling_rate: 1000,
         })
     }
@@ -497,10 +508,11 @@ impl PyBitalino {
 
 /// The Python module definition
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _bitalino_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize Python logging bridge (no-op if already done)
     logging::init_python_logging(m.py())?;
 
+    // Add classes
     m.add_class::<PyBitalino>()?;
     m.add_class::<PyFrame>()?;
     m.add_class::<PyFrameBatch>()?;

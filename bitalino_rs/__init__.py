@@ -3,7 +3,7 @@
 Layout and intent
 -----------------
 The Python package is a thin, well-typed façade over the Rust core compiled as
-``_core``. Everything is grouped by concern:
+``_bitalino_core``. Everything is grouped by concern:
 
 * ``device``: High-level driver that wraps Bluetooth/serial I/O and exposes the
     stateful operations you call from Python.

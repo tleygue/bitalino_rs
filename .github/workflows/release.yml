@@ -7,8 +7,8 @@ name: Release
       - 'v*'
 
 permissions:
-  id-token: write  # Required for OIDC
-  contents: write  # Needed for release uploads
+  id-token: write  # Required for PyPI OIDC
+  contents: write  # Required for GitHub Release uploads
 
 jobs:
   linux-wheels:
@@ -68,8 +68,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Download wheels artifact
         uses: actions/download-artifact@v4
@@ -81,3 +79,25 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+
+  publish-crate:
+    name: Publish crate to crates.io
+    environment: crates-io
+    needs: linux-wheels  # Ensures we only publish if the build succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libdbus-1-dev libudev-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          # The action automatically handles 'cargo package' and 'cargo publish'

@@ -42,13 +42,17 @@ const RETRY_DELAY_MS: u64 = 500;
 /// - With `bluez` feature: discovers/pairs (PIN) and connects via BlueZ.
 #[derive(Debug, Clone)]
 pub struct BluetoothConnector {
+    /// RFCOMM channel to connect to (BITalino default: 1).
     pub channel: u8,
+    /// Per-operation I/O timeout applied to the RFCOMM socket.
     pub io_timeout: Duration,
     #[cfg_attr(not(feature = "bluez"), allow(dead_code))]
     pub scan_timeout: Duration,
     #[cfg_attr(not(feature = "bluez"), allow(dead_code))]
     pub pair_timeout: Duration,
+    /// Maximum retry attempts for establishing RFCOMM.
     pub max_retries: u32,
+    /// Delay between retries (exponential backoff uses this as the base).
     pub retry_delay: Duration,
 }
 
