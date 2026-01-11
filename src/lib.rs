@@ -17,7 +17,7 @@
 
 use log::warn;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 
 mod logging;
 
@@ -45,7 +45,7 @@ pub use logging::{init_python_logging, init_rust_logging, reset_python_logging_c
 struct PyFrame {
     #[pyo3(get)]
     sequence: u8,
-    #[pyo3(get)]
+    // Store raw digital bits; expose as list via custom getter to avoid bytes()
     digital: Vec<u8>,
     #[pyo3(get)]
     analog: Vec<u16>,
@@ -74,6 +74,12 @@ impl PyFrame {
             "Frame(seq={}, d={:?}, a={:?})",
             self.sequence, self.digital, self.analog
         )
+    }
+
+    /// Digital channel states as a Python list [I1, I2, O1, O2].
+    #[getter]
+    fn digital(&self, py: Python<'_>) -> PyResult<Py<PyList>> {
+        Ok(PyList::new(py, &self.digital)?.into())
     }
 
     fn __hash__(&self) -> u64 {
@@ -184,7 +190,7 @@ struct PyDeviceState {
     battery: u16,
     #[pyo3(get)]
     battery_threshold: u8,
-    #[pyo3(get)]
+    // store raw digital bits; expose as list via custom getter to avoid bytes()
     digital: Vec<u8>,
 }
 
@@ -216,13 +222,19 @@ impl PyDeviceState {
         self.battery_voltage() < threshold_voltage
     }
 
+    /// Digital channel states as a Python list [I1, I2, O1, O2].
+    #[getter]
+    fn digital(&self, py: Python<'_>) -> PyResult<Py<PyList>> {
+        Ok(PyList::new(py, &self.digital)?.into())
+    }
+
     /// Convert to dictionary for easy serialization.
     fn to_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         dict.set_item("analog", self.analog.clone())?;
         dict.set_item("battery", self.battery)?;
         dict.set_item("battery_threshold", self.battery_threshold)?;
-        dict.set_item("digital", self.digital.clone())?;
+        dict.set_item("digital", PyList::new(py, &self.digital)?)?;
         dict.set_item("battery_voltage", self.battery_voltage())?;
         dict.set_item("is_battery_low", self.is_battery_low())?;
         Ok(dict)
