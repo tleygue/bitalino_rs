@@ -15,7 +15,7 @@
 //! - Data may arrive in bursts due to Bluetooth buffering
 //! - The 4-bit sequence number (0-15) allows detection of dropped frames
 
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -401,10 +401,39 @@ impl Bitalino {
         channels: Vec<u8>,
     ) -> Result<SamplingRate> {
         // Ensure we're in a clean state
-        if let Err(e) = self.stop() {
-            anyhow::bail!("Failed to stop before starting acquisition: {e}");
+        match self.stop() {
+            Ok(_) => {}
+            Err(e) => {
+                let recoverable = e
+                    .downcast_ref::<std::io::Error>()
+                    .map(|ioe| {
+                        matches!(
+                            ioe.kind(),
+                            ErrorKind::NotConnected
+                                | ErrorKind::BrokenPipe
+                                | ErrorKind::ConnectionReset
+                                | ErrorKind::ConnectionAborted
+                                | ErrorKind::WriteZero
+                        )
+                    })
+                    .unwrap_or(false);
+
+                if recoverable {
+                    warn!("stop() before start failed (ignored as link idle): {}", e);
+                } else {
+                    anyhow::bail!("Failed to stop before starting acquisition: {e}");
+                }
+            }
         }
+
+        // Reset local bookkeeping even if the device was already idle.
+        self.active_channels.clear();
+        self.frame_size = 0;
+        self.start_time = None;
+        self.last_seq = None;
+
         std::thread::sleep(COMMAND_DELAY);
+        let _ = self.flush_input();
 
         // Validate and filter channels
         let mut valid_channels: Vec<u8> = channels.into_iter().filter(|&ch| ch < 6).collect();

@@ -12,6 +12,7 @@
 //! 2. Use sequence numbers to detect dropped frames
 //! 3. Calculate sample times as: `start_time + sample_index / sampling_rate`
 
+use log::warn;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -303,8 +304,16 @@ impl PyBitalino {
             .pair_and_connect(mac, pin)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyConnectionError, _>(e.to_string()))?;
 
+        let mut inner = Bitalino::from_rfcomm(stream);
+
+        // Perform an initial handshake to bring the device to a known idle state
+        // and verify the RFCOMM link.
+        if let Err(e) = inner.version() {
+            warn!("Initial version() handshake failed after connect: {}", e);
+        }
+
         Ok(PyBitalino {
-            inner: Bitalino::from_rfcomm(stream),
+            inner,
             sampling_rate: 1000,
         })
     }
