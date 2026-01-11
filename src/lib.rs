@@ -1,7 +1,9 @@
 //! BITalino Rust driver with Python bindings.
 //!
 //! This crate provides a robust interface to BITalino biosignal acquisition devices
-//! via Bluetooth RFCOMM, with automatic pairing and no root privileges required.
+//! via Bluetooth RFCOMM using a minimal libc-based stack. It uses a raw RFCOMM
+//! socket and expects the device to be pre-paired/trusted (you provide the MAC);
+//! no BlueZ/tokio/dbus dependencies or privileged operations are required.
 //!
 //! # Timing and Synchronization
 //!
@@ -12,8 +14,9 @@
 //! 2. Use sequence numbers to detect dropped frames
 //! 3. Calculate sample times as: `start_time + sample_index / sampling_rate`
 
+use log::warn;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 
 mod logging;
 
@@ -41,7 +44,7 @@ pub use logging::{init_python_logging, init_rust_logging, reset_python_logging_c
 struct PyFrame {
     #[pyo3(get)]
     sequence: u8,
-    #[pyo3(get)]
+    // Store raw digital bits; expose as list via custom getter to avoid bytes()
     digital: Vec<u8>,
     #[pyo3(get)]
     analog: Vec<u16>,
@@ -70,6 +73,12 @@ impl PyFrame {
             "Frame(seq={}, d={:?}, a={:?})",
             self.sequence, self.digital, self.analog
         )
+    }
+
+    /// Digital channel states as a Python list [I1, I2, O1, O2].
+    #[getter]
+    fn digital(&self, py: Python<'_>) -> PyResult<Py<PyList>> {
+        Ok(PyList::new(py, &self.digital)?.into())
     }
 
     fn __hash__(&self) -> u64 {
@@ -180,7 +189,7 @@ struct PyDeviceState {
     battery: u16,
     #[pyo3(get)]
     battery_threshold: u8,
-    #[pyo3(get)]
+    // store raw digital bits; expose as list via custom getter to avoid bytes()
     digital: Vec<u8>,
 }
 
@@ -212,13 +221,19 @@ impl PyDeviceState {
         self.battery_voltage() < threshold_voltage
     }
 
+    /// Digital channel states as a Python list [I1, I2, O1, O2].
+    #[getter]
+    fn digital(&self, py: Python<'_>) -> PyResult<Py<PyList>> {
+        Ok(PyList::new(py, &self.digital)?.into())
+    }
+
     /// Convert to dictionary for easy serialization.
     fn to_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dict = PyDict::new(py);
         dict.set_item("analog", self.analog.clone())?;
         dict.set_item("battery", self.battery)?;
         dict.set_item("battery_threshold", self.battery_threshold)?;
-        dict.set_item("digital", self.digital.clone())?;
+        dict.set_item("digital", PyList::new(py, &self.digital)?)?;
         dict.set_item("battery_voltage", self.battery_voltage())?;
         dict.set_item("is_battery_low", self.is_battery_low())?;
         Ok(dict)
@@ -239,7 +254,9 @@ impl From<DeviceState> for PyDeviceState {
 /// BITalino device driver.
 /// Python-facing BITalino driver wrapper for connection and acquisition.
 /// Provides methods to connect, configure, and read biosignal data from
-/// BITalino devices via Bluetooth. No root privileges required.
+/// BITalino devices via Bluetooth. No root privileges required. The backend
+/// uses a raw RFCOMM socket and assumes the device is already paired/trusted
+/// (e.g., via `bluetoothctl`).
 ///
 /// Example:
 ///     >>> device = Bitalino.connect("7E:91:2B:C4:AF:08")
@@ -283,12 +300,13 @@ impl PyBitalino {
 
     /// Connect to a BITalino device via Bluetooth.
     ///
-    /// Automatically discovers, pairs (if needed), and connects to the device.
-    /// No root privileges required.
+    /// Uses a raw RFCOMM socket and expects the device to already be
+    /// paired/trusted; just pass the MAC. The `pin` argument is accepted for API
+    /// compatibility but is ignored by the minimal backend.
     ///
     /// Args:
     ///     mac: The MAC address of the device (e.g., "7E:91:2B:C4:AF:08")
-    ///     pin: The PIN code for pairing (default: "1234")
+    ///     pin: The PIN code (ignored; keep default "1234")
     ///
     /// Returns:
     ///     A connected Bitalino instance
@@ -303,8 +321,16 @@ impl PyBitalino {
             .pair_and_connect(mac, pin)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyConnectionError, _>(e.to_string()))?;
 
+        let mut inner = Bitalino::from_rfcomm(stream);
+
+        // Perform an initial handshake to bring the device to a known idle state
+        // and verify the RFCOMM link.
+        if let Err(e) = inner.version() {
+            warn!("Initial version() handshake failed after connect: {}", e);
+        }
+
         Ok(PyBitalino {
-            inner: Bitalino::from_rfcomm(stream),
+            inner,
             sampling_rate: 1000,
         })
     }

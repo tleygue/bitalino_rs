@@ -1,6 +1,6 @@
 # bitalino-rs
 
-Rust driver and Python bindings for BITalino biosignal acquisition devices. This project automates Bluetooth pairing/connection (RFCOMM), exposes a safe Rust API, and ships Python wheels for easy use in data pipelines.
+Rust driver and Python bindings for BITalino biosignal acquisition devices. This project opens RFCOMM connections to pre-paired devices with a minimal libc-based stack, exposes a safe Rust API, and ships Python wheels for easy use in data pipelines.
 
 ## Quick Links
 - Docs: [tleygue.github.io/bitalino_rs](https://tleygue.github.io/bitalino_rs) (published via GitHub Pages; sources in [docs/](docs/))
@@ -8,7 +8,7 @@ Rust driver and Python bindings for BITalino biosignal acquisition devices. This
 - Crate: `bitalino-rs` (Rust library)
 
 ## Features
-- Connect to BITalino over Bluetooth without root privileges (automatic pair + bind).
+- Connect to BITalino over Bluetooth without root privileges (expects device is pre-paired/trusted).
 - High-level Rust API plus generated Python bindings via PyO3/maturin.
 - Timing-aware reads with sequence numbers, CRC tracking, and batch timestamps.
 - Minimal dependencies; Ubuntu support verified in CI.
@@ -26,7 +26,7 @@ uv pip install bitalino-rs
 ```
 
 ### Python (from source)
-Requirements: Rust (stable), Python 3.11+, system deps (`libdbus-1-dev libudev-dev` on Ubuntu).
+Requirements: Rust (stable), Python 3.11+.
 ```bash
 # in repo root
 uv sync

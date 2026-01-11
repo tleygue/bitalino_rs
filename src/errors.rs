@@ -2,7 +2,6 @@
 use std::io;
 use thiserror::Error;
 
-/// Top-level driver errors surfaced to callers.
 #[derive(Debug, Error)]
 pub enum DriverError {
     /// I/O failures from stdlib operations.
@@ -24,10 +23,12 @@ pub enum DriverError {
 
     /// Operations that exceeded their allotted time budget.
     #[error("timeout: {0}")]
+    #[allow(dead_code)]
     Timeout(String),
 
     /// Device commands that returned an error.
     #[error("command failed: {0}")]
+    #[allow(dead_code)]
     Command(String),
 
     /// CRC check did not validate frame contents.
@@ -41,15 +42,16 @@ pub enum DriverError {
     NotReady(String),
 }
 
-/// Bluetooth-specific failures separated from transport and protocol issues.
 #[derive(Debug, Error)]
 pub enum BluetoothError {
     /// Adapter scan failed to discover the requested MAC address.
     #[error("device not found during scan: {mac}")]
+    #[allow(dead_code)]
     NotFound { mac: String },
 
     /// Pairing handshake failed.
     #[error("pairing failed: {0}")]
+    #[allow(dead_code)]
     Pairing(String),
 
     /// RFCOMM connection was not established.

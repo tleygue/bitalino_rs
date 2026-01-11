@@ -17,8 +17,9 @@ What happens under the hood
 ---------------------------
 The Rust layer (pyo3/abi3) owns the heavy lifting:
 
-* Pairing/connect uses a Bluetooth RFCOMM stream (or serial path) and retries
-    with helpful errors.
+* RFCOMM transport: uses a raw RFCOMM socket (device must be pre-paired/trusted
+    and you pass the MAC). No BlueZ/tokio/dbus stack is required at build or
+    runtime.
 * Acquisition runs on the device crystal; the driver reconstructs timing from
     sequence numbers and host timestamps, surfacing CRC and gap counts via
     ``FrameBatch``.
