@@ -429,7 +429,7 @@ impl PyBitalino {
     ///     RuntimeError: If acquisition is not started or the timeout elapses
     ///         before a valid frame arrives.
     #[pyo3(signature = (timeout=2.0))]
-    fn wait_until_streaming(&mut self, timeout: f64) -> PyResult<()> {
+    fn wait_until_streaming(&mut self, py: Python<'_>, timeout: f64) -> PyResult<()> {
         if !timeout.is_finite() || timeout <= 0.0 || timeout > MAX_WAIT_TIMEOUT_SECS {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "timeout must be finite and in (0, {}] seconds; got {}",
@@ -437,8 +437,7 @@ impl PyBitalino {
             )));
         }
         let duration = std::time::Duration::from_secs_f64(timeout);
-        self.inner
-            .wait_until_streaming(duration)
+        py.detach(|| self.inner.wait_until_streaming(duration))
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
