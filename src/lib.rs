@@ -270,6 +270,10 @@ struct PyBitalino {
     sampling_rate: u16,
 }
 
+/// Upper bound on `wait_until_streaming` timeouts (seconds).
+/// Keeps `Duration::from_secs_f64` and `Instant::checked_add` well within range.
+const MAX_WAIT_TIMEOUT_SECS: f64 = 3600.0;
+
 #[pyfunction]
 /// Enable Rust-to-Python logging bridge at the given level (or env default).
 fn enable_rust_logs(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
@@ -418,16 +422,19 @@ impl PyBitalino {
     ///
     /// Args:
     ///     timeout: Maximum time to wait, in seconds. Default: 2.0.
+    ///         Must be finite and in (0, 3600].
     ///
     /// Raises:
+    ///     ValueError: If timeout is not a finite number in (0, 3600] seconds.
     ///     RuntimeError: If acquisition is not started or the timeout elapses
     ///         before a valid frame arrives.
     #[pyo3(signature = (timeout=2.0))]
     fn wait_until_streaming(&mut self, timeout: f64) -> PyResult<()> {
-        if !timeout.is_finite() || timeout <= 0.0 {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "timeout must be a positive, finite number of seconds",
-            ));
+        if !timeout.is_finite() || timeout <= 0.0 || timeout > MAX_WAIT_TIMEOUT_SECS {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "timeout must be finite and in (0, {}] seconds; got {}",
+                MAX_WAIT_TIMEOUT_SECS, timeout
+            )));
         }
         let duration = std::time::Duration::from_secs_f64(timeout);
         self.inner

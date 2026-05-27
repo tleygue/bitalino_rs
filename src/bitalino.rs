@@ -787,7 +787,9 @@ impl Bitalino {
             anyhow::bail!("Acquisition not started. Call start() first.");
         }
 
-        let deadline = Instant::now() + timeout;
+        let deadline = Instant::now()
+            .checked_add(timeout)
+            .ok_or_else(|| anyhow::anyhow!("timeout too large: deadline would overflow"))?;
         let mut buffer = vec![0u8; self.frame_size];
         let mut discarded = 0usize;
         let mut crc_failures = 0usize;
