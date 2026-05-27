@@ -1089,3 +1089,74 @@ impl Bitalino {
         Frame::new(seq, digital, analog)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    impl Transport for Cursor<Vec<u8>> {}
+
+    /// Transport that always reports `WouldBlock`, exercising the deadline path
+    /// without ever closing or returning data.
+    struct AlwaysBlock;
+
+    impl Read for AlwaysBlock {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            std::thread::sleep(Duration::from_millis(5));
+            Err(std::io::Error::from(ErrorKind::WouldBlock))
+        }
+    }
+
+    impl Write for AlwaysBlock {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Transport for AlwaysBlock {}
+
+    fn build_idle_device<T: Transport + 'static>(transport: T) -> Bitalino {
+        Bitalino {
+            transport: Box::new(transport),
+            active_channels: Vec::new(),
+            frame_size: 0,
+            sampling_rate: SamplingRate::Hz1000,
+            start_time: None,
+            last_seq: None,
+            is_bitalino2: false,
+            is_bitalino52: false,
+        }
+    }
+
+    #[test]
+    fn wait_until_streaming_errors_when_not_started() {
+        let mut dev = build_idle_device(Cursor::new(Vec::new()));
+        let err = dev
+            .wait_until_streaming(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("not started"),
+            "expected 'not started' in error: {err}"
+        );
+    }
+
+    #[test]
+    fn wait_until_streaming_times_out_on_silent_peer() {
+        let mut dev = build_idle_device(AlwaysBlock);
+        // Pretend a 1-channel acquisition has started so the precondition passes.
+        dev.frame_size = 3;
+        dev.active_channels = vec![0];
+
+        let err = dev
+            .wait_until_streaming(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+        assert!(err.starts_with("Timeout"), "expected timeout error: {err}");
+    }
+}
