@@ -197,8 +197,27 @@ impl DeviceState {
 // ============================================================================
 
 /// Trait for Read + Write + Send, allowing different transport backends.
-trait Transport: Read + Write + Send {}
-impl<T: Read + Write + Send> Transport for T {}
+///
+/// `set_read_timeout` defaults to a no-op so test transports (e.g. `Cursor`) and
+/// any future backend that does not support per-call timeout adjustment continue
+/// to compile without ceremony.
+trait Transport: Read + Write + Send {
+    fn set_read_timeout(&mut self, _timeout: Duration) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Transport for RfcommStream {
+    fn set_read_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
+        RfcommStream::set_read_timeout(self, timeout)
+    }
+}
+
+impl Transport for Box<dyn serialport::SerialPort> {
+    fn set_read_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
+        (**self).set_timeout(timeout).map_err(std::io::Error::other)
+    }
+}
 
 // ============================================================================
 // Bitalino Driver
@@ -752,6 +771,10 @@ impl Bitalino {
 
     /// Read multiple frames from the device.
     ///
+    /// Convenience wrapper around [`read_frames_timed`](Self::read_frames_timed) that
+    /// discards the batch's `timestamp_us`, `crc_errors`, and `sequence_gaps`. Prefer
+    /// `read_frames_timed` when you need to detect dropped or corrupted frames.
+    ///
     /// # Arguments
     /// * `n_frames` - Number of frames to read
     ///
@@ -760,6 +783,108 @@ impl Bitalino {
     pub fn read_frames(&mut self, n_frames: usize) -> Result<Vec<Frame>> {
         let batch = self.read_frames_timed(n_frames)?;
         Ok(batch.frames)
+    }
+
+    /// Block until the device is reliably streaming valid frames.
+    ///
+    /// After [`start`](Self::start) returns, the device begins emitting frames but the
+    /// Bluetooth link may still be warming up — early bytes can be lost or corrupted,
+    /// so the first reads may fail CRC. This method discards those warm-up frames and
+    /// returns as soon as one CRC-valid frame arrives. The valid frame is consumed
+    /// (not surfaced to the caller), and `last_seq` is updated so subsequent calls to
+    /// [`read_frames_timed`](Self::read_frames_timed) don't flag a spurious gap.
+    ///
+    /// # Arguments
+    /// * `timeout` - Maximum time to wait for a valid frame. Transient I/O errors
+    ///   (`WouldBlock` / `TimedOut` / `Interrupted`) are retried while bytes already
+    ///   read are kept; their wait time counts against the deadline.
+    ///
+    /// # Errors
+    /// - Returns an error if acquisition is not started.
+    /// - Returns an error starting with `"Timeout"` if no CRC-valid frame arrives
+    ///   before `timeout` elapses.
+    pub fn wait_until_streaming(&mut self, timeout: Duration) -> Result<()> {
+        if self.frame_size == 0 {
+            anyhow::bail!("Acquisition not started. Call start() first.");
+        }
+
+        let deadline = Instant::now()
+            .checked_add(timeout)
+            .ok_or_else(|| anyhow::anyhow!("timeout too large: deadline would overflow"))?;
+
+        // Tighten the kernel-level read timeout so a fully-silent peer cannot
+        // overshoot the caller's deadline by up to the default 5 s SO_RCVTIMEO.
+        // Best-effort: backends that do not support per-call tuning (the trait
+        // default no-op) keep their existing socket-level timeout.
+        let _ = self
+            .transport
+            .set_read_timeout(timeout.min(DEFAULT_TIMEOUT));
+
+        let result = self.wait_until_streaming_inner(timeout, deadline);
+
+        // Restore the connector's default timeout regardless of outcome.
+        let _ = self.transport.set_read_timeout(DEFAULT_TIMEOUT);
+
+        result
+    }
+
+    fn wait_until_streaming_inner(&mut self, timeout: Duration, deadline: Instant) -> Result<()> {
+        let mut buffer = vec![0u8; self.frame_size];
+        let mut discarded = 0usize;
+        let mut crc_failures = 0usize;
+
+        loop {
+            if !self.fill_buffer(&mut buffer, Some(deadline))? {
+                anyhow::bail!(
+                    "Timeout waiting for valid frames after {:?} ({} discarded, {} CRC failures)",
+                    timeout,
+                    discarded,
+                    crc_failures
+                );
+            }
+            discarded += 1;
+            if self.verify_crc(&buffer) {
+                let frame = self.decode_frame(&buffer);
+                self.last_seq = Some(frame.seq);
+                debug!(
+                    "Streaming ready after {} frames ({} CRC failures)",
+                    discarded, crc_failures
+                );
+                return Ok(());
+            }
+            crc_failures += 1;
+        }
+    }
+
+    /// Read exactly `buf.len()` bytes from the transport, optionally honoring a
+    /// wall-clock deadline.
+    ///
+    /// With `Some(deadline)`, returns `Ok(true)` when the buffer is filled and
+    /// `Ok(false)` when the deadline elapses first. With `None`, blocks (modulo
+    /// kernel-level socket timeouts) until the buffer is filled. Bytes already read
+    /// are kept across transient `WouldBlock` / `TimedOut` / `Interrupted` errors so
+    /// the BITalino frame cursor stays aligned; `read_exact` cannot offer this
+    /// guarantee on its own.
+    fn fill_buffer(&mut self, buf: &mut [u8], deadline: Option<Instant>) -> Result<bool> {
+        let mut filled = 0usize;
+        while filled < buf.len() {
+            if let Some(d) = deadline {
+                if Instant::now() >= d {
+                    return Ok(false);
+                }
+            }
+            match self.transport.read(&mut buf[filled..]) {
+                Ok(0) => anyhow::bail!("transport closed during read"),
+                Ok(n) => filled += n,
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted
+                    ) => {}
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(true)
     }
 
     /// Read multiple frames with timing and error statistics.
@@ -780,7 +905,7 @@ impl Bitalino {
         let mut sequence_gaps = 0usize;
 
         for _ in 0..n_frames {
-            self.transport.read_exact(&mut buffer)?;
+            self.fill_buffer(&mut buffer, None)?;
 
             if self.verify_crc(&buffer) {
                 let frame = self.decode_frame(&buffer);
@@ -962,5 +1087,76 @@ impl Bitalino {
         }
 
         Frame::new(seq, digital, analog)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    impl Transport for Cursor<Vec<u8>> {}
+
+    /// Transport that always reports `WouldBlock`, exercising the deadline path
+    /// without ever closing or returning data.
+    struct AlwaysBlock;
+
+    impl Read for AlwaysBlock {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            std::thread::sleep(Duration::from_millis(5));
+            Err(std::io::Error::from(ErrorKind::WouldBlock))
+        }
+    }
+
+    impl Write for AlwaysBlock {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Transport for AlwaysBlock {}
+
+    fn build_idle_device<T: Transport + 'static>(transport: T) -> Bitalino {
+        Bitalino {
+            transport: Box::new(transport),
+            active_channels: Vec::new(),
+            frame_size: 0,
+            sampling_rate: SamplingRate::Hz1000,
+            start_time: None,
+            last_seq: None,
+            is_bitalino2: false,
+            is_bitalino52: false,
+        }
+    }
+
+    #[test]
+    fn wait_until_streaming_errors_when_not_started() {
+        let mut dev = build_idle_device(Cursor::new(Vec::new()));
+        let err = dev
+            .wait_until_streaming(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("not started"),
+            "expected 'not started' in error: {err}"
+        );
+    }
+
+    #[test]
+    fn wait_until_streaming_times_out_on_silent_peer() {
+        let mut dev = build_idle_device(AlwaysBlock);
+        // Pretend a 1-channel acquisition has started so the precondition passes.
+        dev.frame_size = 3;
+        dev.active_channels = vec![0];
+
+        let err = dev
+            .wait_until_streaming(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+        assert!(err.starts_with("Timeout"), "expected timeout error: {err}");
     }
 }

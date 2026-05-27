@@ -26,8 +26,9 @@ import bitalino_rs as brs
 
 device = brs.Bitalino.connect("7E:91:2B:C4:AF:08")
 device.start(rate=1000, channels=[0, 1, 2])
-batch = device.read(200)
-print(f"frames={len(batch)}, crc_errors={batch.crc_errors}, gaps={batch.sequence_gaps}")
+device.wait_until_streaming(timeout=2.0)  # block until BT link is reliable
+batch = device.read_timed(200)
+print(f"frames={len(batch.frames)}, crc_errors={batch.crc_errors}, gaps={batch.sequence_gaps}")
 device.stop()
 ```
 

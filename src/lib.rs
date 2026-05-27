@@ -270,6 +270,10 @@ struct PyBitalino {
     sampling_rate: u16,
 }
 
+/// Upper bound on `wait_until_streaming` timeouts (seconds).
+/// Keeps `Duration::from_secs_f64` and `Instant::checked_add` well within range.
+const MAX_WAIT_TIMEOUT_SECS: f64 = 3600.0;
+
 #[pyfunction]
 /// Enable Rust-to-Python logging bridge at the given level (or env default).
 fn enable_rust_logs(py: Python<'_>, level: Option<&str>) -> PyResult<()> {
@@ -372,6 +376,9 @@ impl PyBitalino {
 
     /// Read frames from the device.
     ///
+    /// Convenience wrapper that discards the batch's timing and integrity counters.
+    /// Use ``read_timed()`` if you need to detect CRC errors or dropped frames.
+    ///
     /// Args:
     ///     n_frames: Number of frames to read. Default: 100.
     ///
@@ -404,6 +411,45 @@ impl PyBitalino {
             .read_frames_timed(n_frames)
             .map(PyFrameBatch::from)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))
+    }
+
+    /// Block until the device is reliably streaming valid frames.
+    ///
+    /// After ``start()`` returns, the Bluetooth link may still be warming up: the
+    /// device is emitting frames but early bytes can be lost or corrupted. This
+    /// method discards warm-up frames and returns as soon as one CRC-valid frame
+    /// arrives. The valid frame's sequence number is stashed so the next
+    /// ``read_timed()`` call does not flag a spurious sequence gap.
+    ///
+    /// Args:
+    ///     timeout: Maximum time to wait, in seconds. Default: 2.0.
+    ///         Must be finite and in (0, 3600].
+    ///
+    /// Raises:
+    ///     ValueError: If timeout is not a finite number in (0, 3600] seconds.
+    ///     TimeoutError: If no CRC-valid frame arrives before the deadline.
+    ///     IOError: If the underlying transport fails (e.g. link dropped).
+    ///     RuntimeError: If acquisition is not started.
+    #[pyo3(signature = (timeout=2.0))]
+    fn wait_until_streaming(&mut self, py: Python<'_>, timeout: f64) -> PyResult<()> {
+        if !timeout.is_finite() || timeout <= 0.0 || timeout > MAX_WAIT_TIMEOUT_SECS {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "timeout must be finite and in (0, {}] seconds; got {}",
+                MAX_WAIT_TIMEOUT_SECS, timeout
+            )));
+        }
+        let duration = std::time::Duration::from_secs_f64(timeout);
+        py.detach(|| self.inner.wait_until_streaming(duration))
+            .map_err(|e| {
+                let msg = e.to_string();
+                if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                    PyErr::new::<pyo3::exceptions::PyIOError, _>(io_err.to_string())
+                } else if msg.starts_with("Timeout") {
+                    PyErr::new::<pyo3::exceptions::PyTimeoutError, _>(msg)
+                } else {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(msg)
+                }
+            })
     }
 
     /// Get the current sampling rate.
