@@ -803,7 +803,6 @@ impl Bitalino {
     /// - Returns an error if acquisition is not started.
     /// - Returns an error starting with `"Timeout"` if no CRC-valid frame arrives
     ///   before `timeout` elapses.
-    #[allow(dead_code)]
     pub fn wait_until_streaming(&mut self, timeout: Duration) -> Result<()> {
         if self.frame_size == 0 {
             anyhow::bail!("Acquisition not started. Call start() first.");

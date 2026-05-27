@@ -40,11 +40,13 @@ cargo build --release
 ## Usage
 ### Rust
 ```rust
+use std::time::Duration;
 use bitalino_rs::{Bitalino, SamplingRate};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 		let mut dev = Bitalino::connect("7E:91:2B:C4:AF:08", "1234")?;
 		dev.start(SamplingRate::Hz1000 as u16, Some(vec![0, 1, 2]))?;
+		dev.wait_until_streaming(Duration::from_secs(2))?; // block until BT link is reliable
 		let frames = dev.read_frames(100)?;
 		println!("read {} frames", frames.len());
 		dev.stop()?;
@@ -58,6 +60,7 @@ from bitalino_rs import Bitalino
 
 dev = Bitalino.connect("7E:91:2B:C4:AF:08")
 dev.start(rate=1000, channels=[0, 1, 2])
+dev.wait_until_streaming(timeout=2.0)  # block until BT link is reliable
 batch = dev.read_timed(200)
 print(batch.timestamp_us, batch.sequence_gaps)
 dev.stop()

@@ -46,6 +46,10 @@ fn run() -> Result<()> {
     println!("Starting Acquisition (1000Hz)...");
     device.start(1000, vec![0, 1, 2, 3, 4, 5])?;
 
+    if let Err(e) = device.wait_until_streaming(Duration::from_secs(2)) {
+        eprintln!("Warm-up gate: {e}");
+    }
+
     println!("Reading 10 batches of 100 samples...");
     for i in 0..10 {
         match device.read_frames(100) {

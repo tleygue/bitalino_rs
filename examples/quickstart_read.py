@@ -21,6 +21,7 @@ def main() -> int:
 
     dev = Bitalino.connect(args.mac)
     dev.start(rate=1000, channels=[0, 1, 2])
+    dev.wait_until_streaming(timeout=2.0)
     frames = dev.read(args.frames)
     dev.stop()
 
