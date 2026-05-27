@@ -798,7 +798,7 @@ impl Bitalino {
         let mut crc_failures = 0usize;
 
         loop {
-            if !self.fill_until_deadline(&mut buffer, deadline)? {
+            if !self.fill_buffer(&mut buffer, Some(deadline))? {
                 anyhow::bail!(
                     "Timeout waiting for valid frames after {:?} ({} discarded, {} CRC failures)",
                     timeout,
@@ -820,18 +820,22 @@ impl Bitalino {
         }
     }
 
-    /// Read exactly `buf.len()` bytes from the transport, honoring a wall-clock deadline.
+    /// Read exactly `buf.len()` bytes from the transport, optionally honoring a
+    /// wall-clock deadline.
     ///
-    /// Returns `Ok(true)` when the buffer is filled, `Ok(false)` when the deadline
-    /// elapses first. Bytes already read are kept across transient `WouldBlock` /
-    /// `TimedOut` / `Interrupted` errors so the BITalino frame cursor stays aligned;
-    /// `read_exact` cannot offer this guarantee on its own.
-    #[allow(dead_code)]
-    fn fill_until_deadline(&mut self, buf: &mut [u8], deadline: Instant) -> Result<bool> {
+    /// With `Some(deadline)`, returns `Ok(true)` when the buffer is filled and
+    /// `Ok(false)` when the deadline elapses first. With `None`, blocks (modulo
+    /// kernel-level socket timeouts) until the buffer is filled. Bytes already read
+    /// are kept across transient `WouldBlock` / `TimedOut` / `Interrupted` errors so
+    /// the BITalino frame cursor stays aligned; `read_exact` cannot offer this
+    /// guarantee on its own.
+    fn fill_buffer(&mut self, buf: &mut [u8], deadline: Option<Instant>) -> Result<bool> {
         let mut filled = 0usize;
         while filled < buf.len() {
-            if Instant::now() >= deadline {
-                return Ok(false);
+            if let Some(d) = deadline {
+                if Instant::now() >= d {
+                    return Ok(false);
+                }
             }
             match self.transport.read(&mut buf[filled..]) {
                 Ok(0) => anyhow::bail!("transport closed during read"),
@@ -865,7 +869,7 @@ impl Bitalino {
         let mut sequence_gaps = 0usize;
 
         for _ in 0..n_frames {
-            self.transport.read_exact(&mut buffer)?;
+            self.fill_buffer(&mut buffer, None)?;
 
             if self.verify_crc(&buffer) {
                 let frame = self.decode_frame(&buffer);
