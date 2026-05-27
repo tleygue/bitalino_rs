@@ -372,6 +372,9 @@ impl PyBitalino {
 
     /// Read frames from the device.
     ///
+    /// Convenience wrapper that discards the batch's timing and integrity counters.
+    /// Use ``read_timed()`` if you need to detect CRC errors or dropped frames.
+    ///
     /// Args:
     ///     n_frames: Number of frames to read. Default: 100.
     ///
@@ -404,6 +407,32 @@ impl PyBitalino {
             .read_frames_timed(n_frames)
             .map(PyFrameBatch::from)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))
+    }
+
+    /// Block until the device is reliably streaming valid frames.
+    ///
+    /// After ``start()`` returns, the Bluetooth link may still be warming up: the
+    /// device is emitting frames but early bytes can be lost or corrupted. This
+    /// method discards warm-up frames and returns as soon as one CRC-valid frame
+    /// arrives, so the caller can mark the sensor as "capturing".
+    ///
+    /// Args:
+    ///     timeout: Maximum time to wait, in seconds. Default: 2.0.
+    ///
+    /// Raises:
+    ///     RuntimeError: If acquisition is not started or the timeout elapses
+    ///         before a valid frame arrives.
+    #[pyo3(signature = (timeout=2.0))]
+    fn wait_until_streaming(&mut self, timeout: f64) -> PyResult<()> {
+        if !timeout.is_finite() || timeout <= 0.0 {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "timeout must be a positive, finite number of seconds",
+            ));
+        }
+        let duration = std::time::Duration::from_secs_f64(timeout);
+        self.inner
+            .wait_until_streaming(duration)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
     /// Get the current sampling rate.

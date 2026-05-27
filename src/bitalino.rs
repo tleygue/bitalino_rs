@@ -752,6 +752,10 @@ impl Bitalino {
 
     /// Read multiple frames from the device.
     ///
+    /// Convenience wrapper around [`read_frames_timed`](Self::read_frames_timed) that
+    /// discards the batch's `timestamp_us`, `crc_errors`, and `sequence_gaps`. Prefer
+    /// `read_frames_timed` when you need to detect dropped or corrupted frames.
+    ///
     /// # Arguments
     /// * `n_frames` - Number of frames to read
     ///
@@ -760,6 +764,64 @@ impl Bitalino {
     pub fn read_frames(&mut self, n_frames: usize) -> Result<Vec<Frame>> {
         let batch = self.read_frames_timed(n_frames)?;
         Ok(batch.frames)
+    }
+
+    /// Block until the device is reliably streaming valid frames.
+    ///
+    /// After [`start`](Self::start) returns, the device begins emitting frames but the
+    /// Bluetooth link may still be warming up — early bytes can be lost or corrupted,
+    /// so the first reads may fail CRC. This method discards those warm-up frames and
+    /// returns as soon as one CRC-valid frame arrives. The valid frame is consumed
+    /// (not surfaced to the caller), and `last_seq` is updated so subsequent calls to
+    /// [`read_frames_timed`](Self::read_frames_timed) don't flag a spurious gap.
+    ///
+    /// # Arguments
+    /// * `timeout` - Maximum time to wait for a valid frame.
+    ///
+    /// # Errors
+    /// - Returns an error if acquisition is not started.
+    /// - Returns an error if no CRC-valid frame arrives before `timeout` elapses.
+    #[allow(dead_code)]
+    pub fn wait_until_streaming(&mut self, timeout: Duration) -> Result<()> {
+        if self.frame_size == 0 {
+            anyhow::bail!("Acquisition not started. Call start() first.");
+        }
+
+        let deadline = Instant::now() + timeout;
+        let mut buffer = vec![0u8; self.frame_size];
+        let mut discarded = 0usize;
+        let mut crc_failures = 0usize;
+
+        while Instant::now() < deadline {
+            match self.transport.read_exact(&mut buffer) {
+                Ok(()) => {
+                    discarded += 1;
+                    if self.verify_crc(&buffer) {
+                        let frame = self.decode_frame(&buffer);
+                        self.last_seq = Some(frame.seq);
+                        debug!(
+                            "Streaming ready after {} frames ({} CRC failures)",
+                            discarded, crc_failures
+                        );
+                        return Ok(());
+                    }
+                    crc_failures += 1;
+                }
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted
+                    ) => {}
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        anyhow::bail!(
+            "Timeout waiting for valid frames after {:?} ({} discarded, {} CRC failures)",
+            timeout,
+            discarded,
+            crc_failures
+        )
     }
 
     /// Read multiple frames with timing and error statistics.
