@@ -93,6 +93,32 @@ pub struct RfcommStream {
 }
 
 impl RfcommStream {
+    /// Set the socket receive timeout (`SO_RCVTIMEO`).
+    ///
+    /// Used by the driver to enforce short user-supplied timeouts (e.g. in
+    /// `wait_until_streaming`) without waiting for the connector's default 5 s
+    /// kernel timeout to fire.
+    pub fn set_read_timeout(&self, timeout: Duration) -> std::io::Result<()> {
+        let tv = libc::timeval {
+            tv_sec: timeout.as_secs() as libc::time_t,
+            tv_usec: timeout.subsec_micros() as libc::suseconds_t,
+        };
+        let ret = unsafe {
+            libc::setsockopt(
+                self.file.as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_RCVTIMEO,
+                &tv as *const _ as *const libc::c_void,
+                mem::size_of::<libc::timeval>() as libc::socklen_t,
+            )
+        };
+        if ret < 0 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+
     /// Verify the connection is actually established and usable.
     pub fn verify_connected(&self) -> Result<()> {
         // Check socket error status

@@ -197,8 +197,27 @@ impl DeviceState {
 // ============================================================================
 
 /// Trait for Read + Write + Send, allowing different transport backends.
-trait Transport: Read + Write + Send {}
-impl<T: Read + Write + Send> Transport for T {}
+///
+/// `set_read_timeout` defaults to a no-op so test transports (e.g. `Cursor`) and
+/// any future backend that does not support per-call timeout adjustment continue
+/// to compile without ceremony.
+trait Transport: Read + Write + Send {
+    fn set_read_timeout(&mut self, _timeout: Duration) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Transport for RfcommStream {
+    fn set_read_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
+        RfcommStream::set_read_timeout(self, timeout)
+    }
+}
+
+impl Transport for Box<dyn serialport::SerialPort> {
+    fn set_read_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
+        (**self).set_timeout(timeout).map_err(std::io::Error::other)
+    }
+}
 
 // ============================================================================
 // Bitalino Driver
@@ -793,6 +812,24 @@ impl Bitalino {
         let deadline = Instant::now()
             .checked_add(timeout)
             .ok_or_else(|| anyhow::anyhow!("timeout too large: deadline would overflow"))?;
+
+        // Tighten the kernel-level read timeout so a fully-silent peer cannot
+        // overshoot the caller's deadline by up to the default 5 s SO_RCVTIMEO.
+        // Best-effort: backends that do not support per-call tuning (the trait
+        // default no-op) keep their existing socket-level timeout.
+        let _ = self
+            .transport
+            .set_read_timeout(timeout.min(DEFAULT_TIMEOUT));
+
+        let result = self.wait_until_streaming_inner(timeout, deadline);
+
+        // Restore the connector's default timeout regardless of outcome.
+        let _ = self.transport.set_read_timeout(DEFAULT_TIMEOUT);
+
+        result
+    }
+
+    fn wait_until_streaming_inner(&mut self, timeout: Duration, deadline: Instant) -> Result<()> {
         let mut buffer = vec![0u8; self.frame_size];
         let mut discarded = 0usize;
         let mut crc_failures = 0usize;
