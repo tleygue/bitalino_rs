@@ -418,7 +418,8 @@ impl PyBitalino {
     /// After ``start()`` returns, the Bluetooth link may still be warming up: the
     /// device is emitting frames but early bytes can be lost or corrupted. This
     /// method discards warm-up frames and returns as soon as one CRC-valid frame
-    /// arrives, so the caller can mark the sensor as "capturing".
+    /// arrives. The valid frame's sequence number is stashed so the next
+    /// ``read_timed()`` call does not flag a spurious sequence gap.
     ///
     /// Args:
     ///     timeout: Maximum time to wait, in seconds. Default: 2.0.
@@ -426,8 +427,9 @@ impl PyBitalino {
     ///
     /// Raises:
     ///     ValueError: If timeout is not a finite number in (0, 3600] seconds.
-    ///     RuntimeError: If acquisition is not started or the timeout elapses
-    ///         before a valid frame arrives.
+    ///     TimeoutError: If no CRC-valid frame arrives before the deadline.
+    ///     IOError: If the underlying transport fails (e.g. link dropped).
+    ///     RuntimeError: If acquisition is not started.
     #[pyo3(signature = (timeout=2.0))]
     fn wait_until_streaming(&mut self, py: Python<'_>, timeout: f64) -> PyResult<()> {
         if !timeout.is_finite() || timeout <= 0.0 || timeout > MAX_WAIT_TIMEOUT_SECS {
@@ -438,7 +440,16 @@ impl PyBitalino {
         }
         let duration = std::time::Duration::from_secs_f64(timeout);
         py.detach(|| self.inner.wait_until_streaming(duration))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+            .map_err(|e| {
+                let msg = e.to_string();
+                if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                    PyErr::new::<pyo3::exceptions::PyIOError, _>(io_err.to_string())
+                } else if msg.starts_with("Timeout") {
+                    PyErr::new::<pyo3::exceptions::PyTimeoutError, _>(msg)
+                } else {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(msg)
+                }
+            })
     }
 
     /// Get the current sampling rate.

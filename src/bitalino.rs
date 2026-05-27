@@ -776,11 +776,14 @@ impl Bitalino {
     /// [`read_frames_timed`](Self::read_frames_timed) don't flag a spurious gap.
     ///
     /// # Arguments
-    /// * `timeout` - Maximum time to wait for a valid frame.
+    /// * `timeout` - Maximum time to wait for a valid frame. Transient I/O errors
+    ///   (`WouldBlock` / `TimedOut` / `Interrupted`) are retried while bytes already
+    ///   read are kept; their wait time counts against the deadline.
     ///
     /// # Errors
     /// - Returns an error if acquisition is not started.
-    /// - Returns an error if no CRC-valid frame arrives before `timeout` elapses.
+    /// - Returns an error starting with `"Timeout"` if no CRC-valid frame arrives
+    ///   before `timeout` elapses.
     #[allow(dead_code)]
     pub fn wait_until_streaming(&mut self, timeout: Duration) -> Result<()> {
         if self.frame_size == 0 {
@@ -823,6 +826,7 @@ impl Bitalino {
     /// elapses first. Bytes already read are kept across transient `WouldBlock` /
     /// `TimedOut` / `Interrupted` errors so the BITalino frame cursor stays aligned;
     /// `read_exact` cannot offer this guarantee on its own.
+    #[allow(dead_code)]
     fn fill_until_deadline(&mut self, buf: &mut [u8], deadline: Instant) -> Result<bool> {
         let mut filled = 0usize;
         while filled < buf.len() {
