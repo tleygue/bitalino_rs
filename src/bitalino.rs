@@ -794,21 +794,44 @@ impl Bitalino {
         let mut discarded = 0usize;
         let mut crc_failures = 0usize;
 
-        while Instant::now() < deadline {
-            match self.transport.read_exact(&mut buffer) {
-                Ok(()) => {
-                    discarded += 1;
-                    if self.verify_crc(&buffer) {
-                        let frame = self.decode_frame(&buffer);
-                        self.last_seq = Some(frame.seq);
-                        debug!(
-                            "Streaming ready after {} frames ({} CRC failures)",
-                            discarded, crc_failures
-                        );
-                        return Ok(());
-                    }
-                    crc_failures += 1;
-                }
+        loop {
+            if !self.fill_until_deadline(&mut buffer, deadline)? {
+                anyhow::bail!(
+                    "Timeout waiting for valid frames after {:?} ({} discarded, {} CRC failures)",
+                    timeout,
+                    discarded,
+                    crc_failures
+                );
+            }
+            discarded += 1;
+            if self.verify_crc(&buffer) {
+                let frame = self.decode_frame(&buffer);
+                self.last_seq = Some(frame.seq);
+                debug!(
+                    "Streaming ready after {} frames ({} CRC failures)",
+                    discarded, crc_failures
+                );
+                return Ok(());
+            }
+            crc_failures += 1;
+        }
+    }
+
+    /// Read exactly `buf.len()` bytes from the transport, honoring a wall-clock deadline.
+    ///
+    /// Returns `Ok(true)` when the buffer is filled, `Ok(false)` when the deadline
+    /// elapses first. Bytes already read are kept across transient `WouldBlock` /
+    /// `TimedOut` / `Interrupted` errors so the BITalino frame cursor stays aligned;
+    /// `read_exact` cannot offer this guarantee on its own.
+    fn fill_until_deadline(&mut self, buf: &mut [u8], deadline: Instant) -> Result<bool> {
+        let mut filled = 0usize;
+        while filled < buf.len() {
+            if Instant::now() >= deadline {
+                return Ok(false);
+            }
+            match self.transport.read(&mut buf[filled..]) {
+                Ok(0) => anyhow::bail!("transport closed during read"),
+                Ok(n) => filled += n,
                 Err(e)
                     if matches!(
                         e.kind(),
@@ -817,13 +840,7 @@ impl Bitalino {
                 Err(e) => return Err(e.into()),
             }
         }
-
-        anyhow::bail!(
-            "Timeout waiting for valid frames after {:?} ({} discarded, {} CRC failures)",
-            timeout,
-            discarded,
-            crc_failures
-        )
+        Ok(true)
     }
 
     /// Read multiple frames with timing and error statistics.
