@@ -39,7 +39,7 @@ pub use logging::{init_python_logging, init_rust_logging, reset_python_logging_c
 ///     sequence: Frame sequence number (0-15, wrapping). Use to detect dropped frames.
 ///     digital: Digital input values [I1, I2, O1, O2] as list of 0/1.
 ///     analog: Analog channel values (10-bit, 0-1023) for configured channels.
-#[pyclass(name = "Frame", frozen, eq)]
+#[pyclass(name = "Frame", frozen, eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 struct PyFrame {
     #[pyo3(get)]
@@ -123,7 +123,7 @@ impl From<Frame> for PyFrame {
 ///     timestamp_us: Microseconds since acquisition started when batch was read.
 ///     crc_errors: Number of frames discarded due to CRC errors.
 ///     sequence_gaps: Number of detected dropped frames (from sequence discontinuities).
-#[pyclass(name = "FrameBatch", frozen)]
+#[pyclass(name = "FrameBatch", frozen, from_py_object)]
 #[derive(Clone)]
 struct PyFrameBatch {
     #[pyo3(get)]
@@ -180,7 +180,7 @@ impl From<FrameBatch> for PyFrameBatch {
 ///     battery: Battery ADC value (10-bit, 0-1023).
 ///     battery_threshold: Current battery threshold setting (0-63).
 ///     digital: Digital channel states [I1, I2, O1, O2].
-#[pyclass(name = "DeviceState", frozen)]
+#[pyclass(name = "DeviceState", frozen, from_py_object)]
 #[derive(Clone)]
 struct PyDeviceState {
     #[pyo3(get)]
