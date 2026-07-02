@@ -160,7 +160,7 @@ impl PyLogger {
             }
 
             let py_logger = logger_obj.bind(py);
-            match Self::make_record(py, &py_logger, &target, record.level(), record) {
+            match Self::make_record(py, py_logger, &target, record.level(), record) {
                 Ok(rec) => {
                     if let Err(e) = py_logger.call_method1("handle", (rec,)) {
                         e.restore(py);

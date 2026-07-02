@@ -47,7 +47,7 @@ repos:
         types: [rust]
         stages: [manual]
   - repo: https://github.com/EmbarkStudios/cargo-deny
-    rev: 0.14.16
+    rev: 0.19.9
     hooks:
       - id: cargo-deny
         args: ["--all-features", "check"]
