@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["bitalino_rs",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"bitalino_rs/enum.SamplingRate.html\" title=\"enum bitalino_rs::SamplingRate\">SamplingRate</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"bitalino_rs/struct.BluetoothConnector.html\" title=\"struct bitalino_rs::BluetoothConnector\">BluetoothConnector</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"bitalino_rs/struct.DeviceState.html\" title=\"struct bitalino_rs::DeviceState\">DeviceState</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"bitalino_rs/struct.Frame.html\" title=\"struct bitalino_rs::Frame\">Frame</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"bitalino_rs/struct.FrameBatch.html\" title=\"struct bitalino_rs::FrameBatch\">FrameBatch</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1374]}
